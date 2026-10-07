@@ -21,19 +21,29 @@ git clone https://github.com/GuidoGross/Advanced_Automation_Utilities.git
 cd Advanced_Automation_Utilities
 ```
 
-Using a virtual environment is optional, but recommended to keep project dependencies separate from other Python installations. To create and activate one in PowerShell:
-
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-```
-
-From the repository directory, install the project and its dependencies in editable mode:
+From the repository directory, install the project and its dependencies in editable mode using your configured Python installation:
 
 ```powershell
 python -m pip install -e .
 ```
+
+## **Automated checks**
+
+- **Install:**
+
+    ```powershell
+    pip install pre-commit
+    pre-commit install
+    ```
+
+- **Run:**
+
+    ```powershell
+    pre-commit run --all-files
+    ```
+
+> [!NOTE]
+> The configured hooks validate YAML and TOML syntax and reject merge-conflict markers. GitHub Actions also builds the package, installs it on a fresh Windows runner, and verifies that it imports on every push.
 
 ## **Changes and pull requests**
 

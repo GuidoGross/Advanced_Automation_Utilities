@@ -54,43 +54,43 @@ Windows 10 or higher.
 
 - **Install:**
 
-  ```bash
-  pip install advanced_automation_utilities
-  ```
+    ```powershell
+    pip install advanced_automation_utilities
+    ```
 
 - **Show:**
 
-  ```bash
-  pip show advanced_automation_utilities
-  ```
+    ```powershell
+    pip show advanced_automation_utilities
+    ```
 
 - **Update:**
 
-  ```bash
-  pip install -U advanced_automation_utilities
-  ```
+    ```powershell
+    pip install -U advanced_automation_utilities
+    ```
 
 - **Uninstall:**
 
-  ```bash
-  pip uninstall -y advanced_automation_utilities
-  ```
+    ```powershell
+    pip uninstall -y advanced_automation_utilities
+    ```
 
 ## **Features**
 
-The full documentation, API references, and examples are in the **[GitHub Wiki](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki)**.
+The full documentation, API references, and examples are in the **[GitHub Wiki](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki)**.
 
 **Choose a section to explore:**
 
-- **[Mouse](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki/Mouse)**: movement, clicks, scrolling and physics.
-- **[Keyboard](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki/Keyboard)**: typing, hotkeys, blocking and physics.
-- **[Screen](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki/Screen)**: OCR text reading, image location, and pixel colors.
-- **[Timing](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki/Timing)**: smart delays, random delays, and performance measuring.
-- **[Sound](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki/Sound)**: system sounds, TTS and audio files.
-- **[System](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki/System)**: process management, window management and kill-switch.
-- **[Asynchrony](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki/Asynchrony)**: non-blocking parallel executions.
-- **[Physics](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki/Physics)**: human-like mouse and keyboard behaviors.
-- **[Exceptions](https://github.com/GuidoGross/Advanced-Automation-Utilities/wiki/Exceptions)**: library-specific errors.
+- **[Mouse](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki/Mouse)**: movement, clicks, scrolling and physics.
+- **[Keyboard](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki/Keyboard)**: typing, hotkeys, blocking and physics.
+- **[Screen](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki/Screen)**: OCR text reading, image location, and pixel colors.
+- **[Timing](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki/Timing)**: smart delays, random delays, and performance measuring.
+- **[Sound](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki/Sound)**: system sounds, TTS and audio files.
+- **[System](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki/System)**: process management, window management and kill-switch.
+- **[Asynchrony](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki/Asynchrony)**: non-blocking parallel executions.
+- **[Physics](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki/Physics)**: human-like mouse and keyboard behaviors.
+- **[Exceptions](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki/Exceptions)**: library-specific errors.
 
 ## **Support**
 

@@ -1,0 +1,39 @@
+name: Smoke test
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  build-install-import:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Build package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python -m pip install --upgrade pip build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install and import on the fresh runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $wheels = @(Get-ChildItem -Path dist -Filter "*.whl")
+          if ($wheels.Count -ne 1) { throw "Expected one wheel, found $($wheels.Count)." }
+
+          python -m pip install $wheels[0].FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Set-Location $env:RUNNER_TEMP
+          python -c "import advanced_automation_utilities"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

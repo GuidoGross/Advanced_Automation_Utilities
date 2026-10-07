@@ -54,27 +54,27 @@ Windows 10 or higher.
 
 - **Install:**
 
-  ```bash
-  pip install advanced_automation_utilities
-  ```
+    ```powershell
+    pip install advanced_automation_utilities
+    ```
 
 - **Show:**
 
-  ```bash
-  pip show advanced_automation_utilities
-  ```
+    ```powershell
+    pip show advanced_automation_utilities
+    ```
 
 - **Update:**
 
-  ```bash
-  pip install -U advanced_automation_utilities
-  ```
+    ```powershell
+    pip install -U advanced_automation_utilities
+    ```
 
 - **Uninstall:**
 
-  ```bash
-  pip uninstall -y advanced_automation_utilities
-  ```
+    ```powershell
+    pip uninstall -y advanced_automation_utilities
+    ```
 
 ## **Features**
 
