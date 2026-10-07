@@ -47,6 +47,6 @@ jobs:
 
           git -C "$wiki_path" config user.name "github-actions[bot]"
           git -C "$wiki_path" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C "$wiki_path" commit -m "Sync wiki from project repository"
+          git -C "$wiki_path" commit -m "Wiki synchronized with the project's main repository."
           wiki_branch="$(git -C "$wiki_path" branch --show-current)"
           git -C "$wiki_path" push origin "HEAD:$wiki_branch"
