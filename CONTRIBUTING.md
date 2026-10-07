@@ -14,7 +14,7 @@
 
 ## **Development environment**
 
-The library supports Windows 10 or higher and Python 3.10 or higher. Clone the repository and change to its directory:
+The library supports Windows 10 or higher and Python 3.11 or higher. Clone the repository and change to its directory:
 
 ```powershell
 git clone https://github.com/GuidoGross/Advanced_Automation_Utilities.git
