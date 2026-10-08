@@ -9,7 +9,7 @@ class _HoldKey(_KeyboardAction):
         self.key = key
         if not _get_virtual_key_code(self.key):
             raise KeyError(f"The \"{self.key}\" key is not valid or supported.")
-    
+
     def execute(self):
         timing = Timing()
         delay = self.physics.press_delay

@@ -30,7 +30,7 @@ class ScreenInfo:
         ```
         """
         return _get_screen_resolution()
-    
+
     @property
     def width(self) -> int:
         """
@@ -193,9 +193,9 @@ class ScreenInfo:
                 top = monitor["top"]
                 width = monitor["width"]
                 height = monitor["height"]
-                
+
         return left <= x < left + width and top <= y < top + height
-    
+
     @property
     def work_area(self) -> tuple[int, int, int, int]:
         """

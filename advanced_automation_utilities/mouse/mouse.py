@@ -34,7 +34,7 @@ class Mouse(_QueueableController):
         """
         super().__init__()
         self.physics = physics or MousePhysics()
-    
+
     def move(self, x: int, y: int) -> Self:
         """
         **`Mouse().move()`:** Moves the pointer to the specified coordinates smoothly based on the configured physics.
@@ -63,7 +63,7 @@ class Mouse(_QueueableController):
         Because it uses Bézier curves, the mouse will naturally curve and accelerate/decelerate just like a real human hand.
         """
         return self._execute_or_queue(_Move(x = x, y = y, physics = self.physics))
-    
+
     def hold_click(
         self, x: Optional[int] = None, y: Optional[int] = None, button: MouseButton = "left"
     ) -> Self:
@@ -95,7 +95,7 @@ class Mouse(_QueueableController):
         Always ensure you eventually call `release_click()` to avoid leaving the system in a locked state.
         """
         return self._execute_or_queue(_HoldClick(x = x, y = y, button = button, physics = self.physics))
-    
+
     def release_click(
         self, x: Optional[int] = None, y: Optional[int] = None, button: MouseButton = "left"
     ) -> Self:
@@ -164,7 +164,7 @@ class Mouse(_QueueableController):
         return self._execute_or_queue(
             _Click(x = x, y = y, button = button, clicks = clicks, physics = self.physics)
         )
-    
+
     def double_click(
         self, x: Optional[int] = None, y: Optional[int] = None, button: MouseButton = "left"
     ) -> Self:
@@ -192,7 +192,7 @@ class Mouse(_QueueableController):
         ```
         """
         return self.click(x = x, y = y, button = button, clicks = 2)
-    
+
     def right_click(
         self, x: Optional[int] = None, y: Optional[int] = None, clicks: int = 1
     ) -> Self:
@@ -220,7 +220,7 @@ class Mouse(_QueueableController):
         ```
         """
         return self.click(x = x, y = y, button = "right", clicks = clicks)
-    
+
     def middle_click(
         self, x: Optional[int] = None, y: Optional[int] = None, clicks: int = 1
     ) -> Self:
@@ -248,7 +248,7 @@ class Mouse(_QueueableController):
         ```
         """
         return self.click(x = x, y = y, button = "middle", clicks = clicks)
-    
+
     def drag_and_drop(
         self, start_x: int, start_y: int, end_x: int, end_y: int, button: MouseButton = "left"
     ) -> Self:
@@ -283,15 +283,15 @@ class Mouse(_QueueableController):
         """
         return self._execute_or_queue(
             _DragAndDrop(
-                start_x = start_x, 
-                start_y = start_y, 
-                end_x = end_x, 
-                end_y = end_y, 
-                button = button, 
+                start_x = start_x,
+                start_y = start_y,
+                end_x = end_x,
+                end_y = end_y,
+                button = button,
                 physics = self.physics
             )
         )
-    
+
     def scroll(self, amount: int, direction: ScrollDirection = "down") -> Self:
         """
         **`Mouse().scroll()`:** Scrolls the mouse wheel by the specified amount in the specified direction.
@@ -318,7 +318,7 @@ class Mouse(_QueueableController):
         return self._execute_or_queue(
             _Scroll(amount = amount, direction = direction, physics = self.physics)
         )
-    
+
     def scroll_until(
         self,
         condition_function: Callable[[], bool],
@@ -368,7 +368,7 @@ class Mouse(_QueueableController):
                 physics = self.physics
             )
         )
-    
+
     def wander(
         self,
         duration: float = 10,
@@ -403,7 +403,7 @@ class Mouse(_QueueableController):
         Although random, the movements generally tend toward the center of the region.
         """
         return self._execute_or_queue(_Wander(duration, region, maximum_steps, physics = self.physics))
-    
+
     def wander_until(
         self,
         condition_function: Callable[[], bool],

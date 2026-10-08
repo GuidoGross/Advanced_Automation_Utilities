@@ -15,7 +15,7 @@ class Task:
         self._cancelled: bool = False
         self.results: list[Any] = []
         self.last_result: Any = None
-    
+
     def wait(self) -> None:
         """
         **Description:**
@@ -35,7 +35,7 @@ class Task:
         """
         self._done_event.wait()
         if self._exception: raise self._exception
-    
+
     def cancel(self) -> None:
         """
         **Description:**
@@ -61,7 +61,7 @@ class Task:
         """
         self._cancelled = True
         self._cancel_event.set()
-    
+
     @property
     def is_done(self) -> bool:
         """

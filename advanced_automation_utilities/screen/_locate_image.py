@@ -14,7 +14,7 @@ class _LocateImage(_ScreenAction):
         if self.region is not None: _validate_region(self.region)
         self.monitor_index = monitor_index
         _validate_between_range(monitor_index = self.monitor_index)
-    
+
     def execute(self):
         return _locate_image(
             self.image_path, self.confidence, self.limit, self.region, self.monitor_index

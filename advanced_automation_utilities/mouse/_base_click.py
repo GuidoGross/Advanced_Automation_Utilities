@@ -10,7 +10,7 @@ class _BaseClick(_MouseAction):
         self.y = y
         self.button = button.lower() if isinstance(button, str) else button
         _validate_options(self.button, ["left", "right", "middle"], "mouse button")
-    
+
     def _move_if_needed(self):
         if self.x is not None and self.y is not None:
             _Move(self.x, self.y, self.physics).execute()

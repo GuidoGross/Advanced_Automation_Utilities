@@ -6,7 +6,7 @@ class KeyboardInfo:
 
     Provides real-time information about the keyboard state.
     """
-    def is_pressed(self, key: str) -> bool: 
+    def is_pressed(self, key: str) -> bool:
         """
         **`KeyboardInfo().is_pressed()`:** Returns True if the specified key is currently physically held down.
 

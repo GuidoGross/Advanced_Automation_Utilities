@@ -14,7 +14,7 @@ class _DragAndDrop(_MouseAction):
         self.end_y = end_y
         self.button = button
         _validate_options(self.button, ["left", "right", "middle"], "mouse button")
-    
+
     def execute(self):
         timing = Timing()
         _Move(x = self.start_x, y = self.start_y, physics = self.physics).execute()

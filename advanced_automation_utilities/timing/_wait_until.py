@@ -9,7 +9,7 @@ class _WaitUntil(_TimingAction):
         self.timeout = timeout
         self.poll_interval = poll_interval
         _validate_between_range(timeout = self.timeout, poll_interval = self.poll_interval)
-    
+
     def execute(self, stop_event = None):
         timing_info = TimingInfo()
         start_time = timing_info.time

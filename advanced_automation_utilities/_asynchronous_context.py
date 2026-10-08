@@ -4,12 +4,12 @@ class _AsynchronousContext:
     def __init__(self, controller):
         self.controller = controller
         self.task = Task()
-    
+
     def __enter__(self):
         self.controller._queue_mode = True
         self.controller._queue.clear()
         return self.task
-    
+
     def __exit__(self, exc_type, exc_value, traceback):
         self.controller._queue_mode = False
         if not exc_type and self.controller._queue:

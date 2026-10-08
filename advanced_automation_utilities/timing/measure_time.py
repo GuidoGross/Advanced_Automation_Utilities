@@ -37,5 +37,5 @@ def measure_time(function: Callable) -> Callable:
             (f"{decimal_format((end_time - start_time), decimals = 5)}s", {"color": "#00bfff"})
         ], alignment = "center")
         return result
-    
+
     return wrapper

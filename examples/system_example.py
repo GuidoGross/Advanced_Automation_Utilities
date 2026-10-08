@@ -77,7 +77,7 @@ def test_get_active_window_title():
         title = system_info.active_window_title
         print([("Currently focused window is: ", {"bold": True}), (f"{title}", {"color": "#00bfff"})])
         wait_for_key()
-    
+
     start_stop_script(get_active_window_title, "Get active window title")
 
 def test_process_and_window_management():

@@ -39,7 +39,7 @@ class _Move(_MouseAction):
         super().__init__(physics = physics)
         self.x = x
         self.y = y
-    
+
     def execute(self):
         original_target_x, original_target_y = self.x, self.y
         initial_x, initial_y = MouseInfo().coordinates
@@ -67,7 +67,7 @@ class _Move(_MouseAction):
             self._execute_readjustment_phases(
                 error_x, error_y, speed, readjust_duration, original_target_x, original_target_y
             )
-    
+
     def _calculate_speed_and_duration(self, distance):
         speed = self.physics.speed
         duration = self.physics.duration
@@ -83,14 +83,14 @@ class _Move(_MouseAction):
         elif duration > 0 and self.physics.duration_variation > 0:
             duration = max(1e-15, _apply_variation(duration, self.physics.duration_variation))
         return speed, duration
-    
+
     def _apply_target_radius(self):
         if self.physics.target_radius > 0:
             angle = random.uniform(0, 2 * math.pi)
             radius = random.uniform(0, self.physics.target_radius)
             self.x += math.cos(angle) * radius
             self.y += math.sin(angle) * radius
-    
+
     def _calculate_overshoot(self, initial_x, initial_y, speed):
         speed_factor = max(1, speed / self._REFERENCE_SPEED)
         maximum_overshoot = speed * self._OVERSHOOT_DISTANCE_MULTIPLIER * self.physics.inconsistency * speed_factor
@@ -103,7 +103,7 @@ class _Move(_MouseAction):
         error_x = math.cos(overshoot_angle) * overshoot_radius
         error_y = math.sin(overshoot_angle) * overshoot_radius
         return self.x + error_x, self.y + error_y, error_x, error_y
-    
+
     def _execute_readjustment_phases(
         self, error_x, error_y, speed, readjust_duration, original_target_x, original_target_y
     ):
@@ -135,7 +135,7 @@ class _Move(_MouseAction):
             if i < number_of_phases - 1:
                 target_time = time.perf_counter() + pauses[i]
                 while time.perf_counter() < target_time: pass
-    
+
     def _calculate_phase_times(self, phases, available_time):
         if phases == 1:
             return [available_time]
@@ -156,7 +156,7 @@ class _Move(_MouseAction):
             return [
                 available_time * phase_1_fraction, available_time * phase_2_fraction, available_time * (1 - phase_1_fraction - phase_2_fraction)
             ]
-    
+
     def _calculate_error_fractions(self, phases):
         if phases == 1: return [1]
         elif phases == 2:
@@ -208,7 +208,7 @@ class _Move(_MouseAction):
             expected_time += step_duration
             while time.perf_counter() < expected_time: pass
             previous_x, previous_y = current_x, current_y
-    
+
     def _generate_human_path(self, initial_x, initial_y, target_x, target_y, steps, speed):
         distance = math.hypot(target_x - initial_x, target_y - initial_y)
         if distance == 0: return [(target_x, target_y)] * steps
@@ -258,24 +258,24 @@ class _Move(_MouseAction):
                 )
             current_x, current_y = segment_target_x, segment_target_y
         return points
-    
+
     def _bezier_point(self, point_0, point_1, point_2, point_3, progress):
         x = (1 - progress) ** 3 * point_0[0] + 3 * (1 - progress) ** 2 * progress * point_1[0] + 3 * (1 - progress) * progress ** 2 * point_2[0] + progress ** 3 * point_3[0]
         y = (1 - progress) ** 3 * point_0[1] + 3 * (1 - progress) ** 2 * progress * point_1[1] + 3 * (1 - progress) * progress ** 2 * point_2[1] + progress ** 3 * point_3[1]
         return x, y
-    
+
     def _distorted_ease(self, progress, distortion_factor):
         base_ease = self._ease(progress)
         distortion = distortion_factor * (progress ** 2) * ((1 - progress) ** 2) * 16
         ease = max(0, min(1, base_ease + distortion))
         return ease
-    
+
     def _ease(self, n):
         if n < 0.5: return 2 * n * n
         else:
             n = 2 * n - 1
             return -0.5 * (n * (n - 2) - 1)
-    
+
     def _calculate_tremor(self, current_x, current_y, target_x, target_y, speed):
         speed_factor = max(1, speed / self._REFERENCE_SPEED)
         magnitude = random.uniform(self._MINIMUM_TREMOR_MAGNITUDE, self._MAXIMUM_TREMOR_MAGNITUDE) * self.physics.inconsistency / speed_factor

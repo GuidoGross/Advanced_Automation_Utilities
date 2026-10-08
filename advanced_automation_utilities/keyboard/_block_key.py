@@ -7,5 +7,5 @@ class _BlockKey(_KeyboardAction):
             raise KeyError(f"The \"{key}\" key is not valid or supported.")
         super().__init__()
         self.key = key
-    
+
     def execute(self): _block_key(self.key)

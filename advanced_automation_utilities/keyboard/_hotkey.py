@@ -12,7 +12,7 @@ class _Hotkey(_KeyboardAction):
         for key in self.keys:
             if not _get_virtual_key_code(key):
                 raise KeyError(f"The \"{key}\" key is not valid or supported.")
-    
+
     def execute(self):
         timing = Timing()
         keys_held = []

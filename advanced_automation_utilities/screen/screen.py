@@ -94,7 +94,7 @@ class Screen:
             region = region,
             monitor_index = monitor_index
         ).execute()
-    
+
     def read_text(
         self, region: Optional[tuple[int, int, int, int]] = None, monitor_index: int = 0
     ) -> str:
@@ -121,7 +121,7 @@ class Screen:
         ```
         """
         return _ReadText(region = region, monitor_index = monitor_index).execute()
-    
+
     def locate_text(
         self,
         text: str,

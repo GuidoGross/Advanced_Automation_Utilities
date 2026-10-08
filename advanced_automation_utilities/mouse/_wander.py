@@ -11,7 +11,7 @@ class _Wander(_MouseAction):
     _MINIMUM_SPEED_EPSILON = 1e-15
     _CANDIDATES_PER_STEP = 8
     _GAUSSIAN_SIGMA_DIVISOR = 3
-    
+
     def __init__(
         self,
         duration,
@@ -25,7 +25,7 @@ class _Wander(_MouseAction):
         self.maximum_steps = maximum_steps
         _validate_region(self.region)
         _validate_between_range(duration = self.duration, maximum_steps = self.maximum_steps)
-    
+
     def execute(self, stop_event = None):
         timing = Timing()
         timing_info = TimingInfo()
@@ -80,7 +80,7 @@ class _Wander(_MouseAction):
             if stop_event is not None:
                 if stop_event.wait(delay): break
             else: timing.wait(delay)
-    
+
     def _get_next_target(self, distance):
         mouse_info = MouseInfo()
         current_x, current_y = mouse_info.coordinates

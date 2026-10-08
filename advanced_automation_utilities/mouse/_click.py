@@ -9,7 +9,7 @@ class _Click(_BaseClick):
         super().__init__(x, y, button, physics)
         self.clicks = clicks
         _validate_between_range(self.clicks)
-    
+
     def execute(self):
         self._move_if_needed()
         hold_click = _HoldClick(button = self.button, physics = self.physics)

@@ -55,7 +55,7 @@ def test_asynchronous_execution():
         mouse_task.wait()
         keyboard_task.wait()
         sound_task.wait()
-    
+
     start_stop_script(asynchrony, "Asynchronous execution test")
 
 def test_wait_task():
@@ -71,7 +71,7 @@ def test_wait_task():
         with mouse.asynchronous() as mouse_task: mouse.wander(duration = 5)
         print("\nNow waiting for the task to finish...", alignment = "center")
         mouse_task.wait()
-    
+
     start_stop_script(wait_task, "Wait for task")
 
 def test_cancel_task():
@@ -93,7 +93,7 @@ def test_cancel_task():
         ], alignment = "center")
         timing.wait(5)
         mouse_task.cancel()
-    
+
     start_stop_script(cancel_task, "Cancel task")
 
 if __name__ == "__main__": main()

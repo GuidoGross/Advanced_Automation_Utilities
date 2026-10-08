@@ -29,7 +29,7 @@ class MouseInfo:
         ```
         """
         return _get_cursor_position()
-    
+
     @property
     def x(self) -> int:
         """
@@ -50,7 +50,7 @@ class MouseInfo:
         ```
         """
         return self.coordinates[0]
-    
+
     @property
     def y(self) -> int:
         """
@@ -71,7 +71,7 @@ class MouseInfo:
         ```
         """
         return self.coordinates[1]
-    
+
     def pixel_color(self, format: ColorFormat = "rgb") -> tuple[int, int, int] | str:
         """
         **`MouseInfo().pixel_color()`:** Gets the RGB or hexadecimal color of the pixel currently under the pointer.
@@ -95,7 +95,7 @@ class MouseInfo:
         ```
         """
         return ScreenInfo().pixel_color(self.x, self.y, format = format)
-    
+
     def pixel_matches_color(
         self, expected_color: Union[tuple[int, int, int], str], tolerance: float = 1
     ) -> bool:
@@ -124,7 +124,7 @@ class MouseInfo:
         return ScreenInfo().pixel_matches_color(
             x = self.x, y = self.y, expected_color = expected_color, tolerance = tolerance
         )
-    
+
     def on_screen(
         self, region: Optional[tuple[int, int, int, int]] = None, monitor_index: int = 0
     ) -> bool:
@@ -134,7 +134,7 @@ class MouseInfo:
         **Description:**
 
         Verifies if the current mouse coordinates fall inside the designated screen or region. Useful for multi-monitor setups.
-        
+
         **Arguments:**
 
         - **`region` (`Optional[tuple[int, int, int, int]]`):** Format: (left, top, right, bottom).

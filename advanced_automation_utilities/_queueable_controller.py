@@ -17,7 +17,7 @@ class _QueueableController:
         self._worker_thread: threading.Thread | None = None
         self.results: list[Any] = []
         self.last_result: Any = None
-    
+
     def asynchronous(self):
         """
         **Description:**
@@ -38,7 +38,7 @@ class _QueueableController:
         ```
         """
         return _AsynchronousContext(self)
-    
+
     def wait(self, duration: float) -> Self:
         """
         **Description:**
@@ -61,7 +61,7 @@ class _QueueableController:
         ```
         """
         return self._execute_or_queue(_Wait(duration = duration))
-    
+
     def wait_random(self, minimum_duration: float, maximum_duration: float) -> Self:
         """
         **Description:**
@@ -88,7 +88,7 @@ class _QueueableController:
         return self._execute_or_queue(_WaitRandom(
             minimum_duration = minimum_duration, maximum_duration = maximum_duration
         ))
-    
+
     def wait_until(
         self, condition_function: Callable[[], bool], timeout: float = 0, poll_interval: float = 0.1
     ) -> Self:
@@ -124,14 +124,14 @@ class _QueueableController:
             timeout = timeout,
             poll_interval = poll_interval
         ))
-    
+
     def _ensure_worker_running(self):
         if self._worker_thread is None or not self._worker_thread.is_alive():
             self._worker_thread = threading.Thread(
                 target = self._worker_loop, daemon = True, name = f"worker_thread_{id(self)}"
             )
             self._worker_thread.start()
-    
+
     def _worker_loop(self):
         while True:
             task = self._task_queue.get()
@@ -152,10 +152,10 @@ class _QueueableController:
                 task._exception = error
                 if not isinstance(error, (Exception, KillSwitchTriggered)): raise
             finally: task._done_event.set()
-    
+
     def _execute_or_queue(self, action):
         if self._queue_mode: self._queue.append(action)
-        else: 
+        else:
             result = action.execute()
             self.results.append(result)
             self.last_result = result

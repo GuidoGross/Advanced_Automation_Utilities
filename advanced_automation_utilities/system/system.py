@@ -33,7 +33,7 @@ class System(_QueueableController):
         **`None`**
         """
         super().__init__()
-    
+
     def set_clipboard_text(self, text: str) -> Self:
         """
         **`System().set_clipboard_text()`:** Sets the text content of the Windows clipboard.
@@ -57,7 +57,7 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_SetClipboardText(text = text))
-    
+
     def open_process(self, process_path: str) -> Self:
         """
         **`System().open_process()`:** Opens a process or file.
@@ -81,7 +81,7 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_OpenProcess(process_path = process_path))
-    
+
     def kill_process(self, process: str, force: bool = True) -> Self:
         """
         **`System().kill_process()`:** Terminates an active process by its name.
@@ -106,7 +106,7 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_KillProcess(process = process, force = force))
-    
+
     def focus_window(self, window_title: str) -> Self:
         """
         **`System().focus_window()`:** Brings a specific window to the foreground by its title.
@@ -130,7 +130,7 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_FocusWindow(window_title = window_title))
-    
+
     def resize_window(self, window_title: str, width: int, height: int) -> Self:
         """
         **`System().resize_window()`:** Resizes a specific window to the specified dimensions by its title.
@@ -158,7 +158,7 @@ class System(_QueueableController):
         return self._execute_or_queue(
             _ResizeWindow(window_title = window_title, width = width, height = height)
         )
-    
+
     def move_window(self, window_title: str, x: int, y: int) -> Self:
         """
         **`System().move_window()`:** Moves a specific window to the specified coordinates by its title.
@@ -184,7 +184,7 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_MoveWindow(window_title = window_title, x = x, y = y))
-    
+
     def close_window(self, window_title: str) -> Self:
         """
         **`System().close_window()`:** Gently closes a specific window by its title.
@@ -208,8 +208,8 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_CloseWindow(window_title = window_title))
-    
-    def lock_screen(self) -> Self: 
+
+    def lock_screen(self) -> Self:
         """
         **`System().lock_screen()`:** Locks the Windows session (Win+L).
 
@@ -228,8 +228,8 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_LockScreen())
-    
-    def sign_out(self) -> Self: 
+
+    def sign_out(self) -> Self:
         """
         **`System().sign_out()`:** Signs out the current Windows user.
 
@@ -248,8 +248,8 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_SignOut())
-    
-    def sleep(self) -> Self: 
+
+    def sleep(self) -> Self:
         """
         **`System().sleep()`:** Puts the computer into sleep mode.
 
@@ -268,8 +268,8 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_Sleep())
-    
-    def hibernate(self) -> Self: 
+
+    def hibernate(self) -> Self:
         """
         **`System().hibernate()`:** Puts the computer into hibernation mode.
 
@@ -288,7 +288,7 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_Hibernate())
-    
+
     def shutdown(self, delay: int = 0) -> Self:
         """
         **`System().shutdown()`:** Turns off the computer.
@@ -312,7 +312,7 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_Shutdown(delay = delay))
-    
+
     def restart(self, delay: int = 0) -> Self:
         """
         **`System().restart()`:** Restarts the computer.
@@ -336,7 +336,7 @@ class System(_QueueableController):
         ```
         """
         return self._execute_or_queue(_Restart(delay = delay))
-    
+
     def enable_kill_switch(self, *keys: str) -> Self:
         """
         **`System().enable_kill_switch()`:** Enables a global kill switch to abort execution instantly.
@@ -365,8 +365,8 @@ class System(_QueueableController):
         """
         if not keys: keys = ("ctrl", "shift", "alt", "k")
         return self._execute_or_queue(_EnableKillSwitch(*keys))
-    
-    def disable_kill_switch(self) -> Self: 
+
+    def disable_kill_switch(self) -> Self:
         """
         **`System().disable_kill_switch()`:** Disables the global kill switch.
 

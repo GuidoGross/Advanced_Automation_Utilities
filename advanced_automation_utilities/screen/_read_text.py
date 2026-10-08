@@ -8,7 +8,7 @@ class _ReadText(_ScreenAction):
         _validate_region(self.region)
         self.monitor_index = monitor_index
         _validate_between_range(monitor_index = self.monitor_index)
-    
+
     def execute(self):
         result = _run_ocr_on_region(self.region, self.monitor_index)
         return result.text

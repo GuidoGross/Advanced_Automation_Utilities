@@ -65,7 +65,7 @@ class KeyboardPhysics:
             typing_error_correction_delay = self.typing_error_correction_delay,
             typing_error_correction_delay_variation = self.typing_error_correction_delay_variation,
         )
-        _validate_between_range(0, 1, 
+        _validate_between_range(0, 1,
             typing_error_chance = self.typing_error_chance,
             typing_error_delayed_realization_chance = self.typing_error_delayed_realization_chance,
         )

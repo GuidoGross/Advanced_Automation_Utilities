@@ -25,7 +25,7 @@ class _ScrollUntil(_MouseAction):
             scroll_amount = self.amount, wait_time = self.timeout, poll_interval = self.poll_interval
         )
         _validate_options(self.direction, ["up", "down", "left", "right"], "scroll direction")
-    
+
     def execute(self, stop_event = None):
         stop_scroll = False
         timing = Timing()
@@ -42,7 +42,7 @@ class _ScrollUntil(_MouseAction):
                     amount = current_step, direction = self.direction, physics = self.physics
                 ).execute()
                 scrolled += current_step
-        
+
         scroll_thread = threading.Thread(target = scroller, daemon = True)
         scroll_thread.start()
         start_time = timing_info.time

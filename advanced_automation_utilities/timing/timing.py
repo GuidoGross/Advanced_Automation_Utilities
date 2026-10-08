@@ -36,7 +36,7 @@ class Timing:
         This internally uses the global `KILL_SWITCH_EVENT`, meaning if the Kill Switch is triggered during a wait, the wait is aborted instantly.
         """
         return _Wait(duration = duration).execute()
-    
+
     def wait_random(self, minimum_duration: float, maximum_duration: float) -> None:
         """
         **`Timing().wait_random()`:** Pauses execution for a random duration between two limits.
@@ -63,7 +63,7 @@ class Timing:
         return _WaitRandom(
             minimum_duration = minimum_duration, maximum_duration = maximum_duration
         ).execute()
-    
+
     def wait_until(
         self,
         condition_function: Callable[[], bool],

@@ -24,12 +24,12 @@ class _WanderUntil(_MouseAction):
         _validate_region(self.region)
         _validate_between_range(timeout = self.timeout, poll_interval = self.poll_interval)
         if self.maximum_steps is not None: _validate_between_range(maximum_steps = self.maximum_steps)
-    
+
     def execute(self, stop_event = None):
         inner_stop_event = threading.Event()
         timing = Timing()
         timing_info = TimingInfo()
-        
+
         def wanderer():
             wander_duration = self.timeout if self.timeout > 0 else math.inf
             _Wander(
@@ -38,7 +38,7 @@ class _WanderUntil(_MouseAction):
                 maximum_steps = self.maximum_steps,
                 physics = self.physics
             ).execute(stop_event = inner_stop_event)
-        
+
         wander_thread = threading.Thread(target = wanderer, daemon = True)
         wander_thread.start()
         start_time = timing_info.time

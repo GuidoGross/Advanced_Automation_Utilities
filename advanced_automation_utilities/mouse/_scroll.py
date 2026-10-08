@@ -10,7 +10,7 @@ class _Scroll(_MouseAction):
         self.direction = direction.lower()
         _validate_between_range(scroll_amount = self.amount)
         _validate_options(self.direction, ["up", "down", "left", "right"], "scroll direction")
-    
+
     def execute(self):
         timing = Timing()
         if self.amount == 0: return

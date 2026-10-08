@@ -9,7 +9,7 @@ class _PressKey(_KeyboardAction):
         self.key = key
         if not _get_virtual_key_code(self.key):
             raise KeyError(f"The \"{self.key}\" key is not valid or supported.")
-    
+
     def execute(self):
         try: _HoldKey(self.key, self.physics).execute()
         finally: _ReleaseKey(self.key, self.physics).execute()

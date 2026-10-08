@@ -86,9 +86,9 @@ def test_wait_until():
             ("Space", {"color": "#00bfff"}),
             (" key...\n", {})
         ], alignment = "center")
-        
+
         def condition(): return keyboard_info.is_pressed("space")
-        
+
         success = timing.wait_until(condition, timeout = 5)
         if success:
             wait_for_key(text = "")
@@ -100,12 +100,12 @@ def test_wait_until():
 def test_measure_time():
     timing = Timing()
     header("Measure execution time of a function")
-    
+
     @measure_time
     def simulated_task():
         print("Starting a simulated task...\n", alignment = "center")
         timing.wait_random(1, 3)
-    
+
     simulated_task()
     wait_for_key()
 

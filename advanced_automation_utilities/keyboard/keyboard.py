@@ -31,7 +31,7 @@ class Keyboard(_QueueableController):
         """
         super().__init__()
         self.physics = physics or KeyboardPhysics()
-    
+
     def hold_key(self, key: str) -> Self:
         """
         **`Keyboard().hold_key()`:** Holds a key down.
@@ -59,7 +59,7 @@ class Keyboard(_QueueableController):
         Make sure to call `release_key()` to prevent the key from getting physically stuck.
         """
         return self._execute_or_queue(_HoldKey(key = key, physics = self.physics))
-    
+
     def release_key(self, key: str) -> Self:
         """
         **`Keyboard().release_key()`:** Releases a previously held key.
@@ -83,7 +83,7 @@ class Keyboard(_QueueableController):
         ```
         """
         return self._execute_or_queue(_ReleaseKey(key = key, physics = self.physics))
-    
+
     def press_key(self, key: str) -> Self:
         """
         **`Keyboard().press_key()`:** Presses and releases a single key.
@@ -107,7 +107,7 @@ class Keyboard(_QueueableController):
         ```
         """
         return self._execute_or_queue(_PressKey(key = key, physics = self.physics))
-    
+
     def hotkey(self, *keys: str) -> Self:
         """
         **`Keyboard().hotkey()`:** Holds down a combination of keys and releases them in reverse order.
@@ -131,7 +131,7 @@ class Keyboard(_QueueableController):
         ```
         """
         return self._execute_or_queue(_Hotkey(*keys, physics = self.physics))
-    
+
     def block_key(self, key: str) -> Self:
         """
         **`Keyboard().block_key()`:** Blocks all physical input from a specific key.
@@ -159,7 +159,7 @@ class Keyboard(_QueueableController):
         This blocks PHYSICAL input. The script can still simulate presses for this key perfectly fine.
         """
         return self._execute_or_queue(_BlockKey(key = key))
-    
+
     def unblock_key(self, key: str) -> Self:
         """
         **`Keyboard().unblock_key()`:** Unblocks a previously blocked key.
@@ -183,7 +183,7 @@ class Keyboard(_QueueableController):
         ```
         """
         return self._execute_or_queue(_UnblockKey(key = key))
-    
+
     def write(self, text: str) -> Self:
         """
         **`Keyboard().write()`:** Types a string character by character with advanced, human-like typing error simulations and delays, based on the configured physics.

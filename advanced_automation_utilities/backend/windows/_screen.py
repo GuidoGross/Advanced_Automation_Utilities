@@ -111,7 +111,7 @@ def _run_ocr_on_region(region = None, monitor_index = 0):
         raise SystemError(
             "Windows OCR engine could not be initialized. Please check your language settings."
         )
-    
+
     async def recognize(): return await engine.recognize_async(software_bitmap)
-    
+
     return asyncio.run(recognize())

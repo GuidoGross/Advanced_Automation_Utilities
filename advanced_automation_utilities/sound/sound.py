@@ -23,7 +23,7 @@ class Sound(_QueueableController):
         **`None`**
         """
         super().__init__()
-    
+
     def play_beep_sound(self, frequency: int, duration: float) -> Self:
         """
         **`Sound().play_beep_sound()`:** Plays a motherboard beep with a specific frequency and duration.
@@ -48,7 +48,7 @@ class Sound(_QueueableController):
         ```
         """
         return self._execute_or_queue(_PlayBeepSound(frequency = frequency, duration = duration))
-    
+
     def play_system_sound(self, sound_type: SystemSound) -> Self:
         """
         **`Sound().play_system_sound()`:** Plays a default Windows system sound.
@@ -76,27 +76,27 @@ class Sound(_QueueableController):
     def play_audio(self, file_path: str) -> Self:
             """
             **`Sound().play_audio()`:** Plays an audio file from the file system.
-    
+
             **Description:**
-    
+
             Uses the native Windows MCI API for lightweight audio playback.
-    
+
             **Arguments:**
-    
+
             - **`file_path` (`str`)**
-    
+
             **Returns:**
-    
+
             **`Self`**
-    
+
             **Example:**
-    
+
             ```python
             Sound().play_audio(file_path = "alert.wav")
             ```
             """
             return self._execute_or_queue(_PlayAudio(file_path = file_path))
-    
+
     def speak(self, text: str) -> Self:
         """
         **`Sound().speak()`:** Synthesizes text to speech using the default Windows voice.

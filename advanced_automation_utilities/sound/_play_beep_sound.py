@@ -9,5 +9,5 @@ class _PlayBeepSound(_SoundAction):
         self.duration = duration
         _validate_between_range(37, 32767, frequency = self.frequency)
         _validate_between_range(1e-15, math.inf, duration = self.duration)
-    
+
     def execute(self): _play_beep_sound(self.frequency, self.duration)

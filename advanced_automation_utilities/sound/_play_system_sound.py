@@ -8,5 +8,5 @@ class _PlaySystemSound(_SoundAction):
         _validate_options(
             self.sound_type.lower(), ["info", "warning", "error", "question", "ok"], "system sound type"
         )
-    
+
     def execute(self): _play_system_sound(self.sound_type)

@@ -26,7 +26,7 @@ class SystemInfo:
         ```
         """
         return _get_clipboard_text()
-    
+
     @property
     def active_window_title(self) -> str:
         """
@@ -47,7 +47,7 @@ class SystemInfo:
         ```
         """
         return _get_active_window_title()
-    
+
     def is_process_running(self, process: str) -> bool:
         """
         **`SystemInfo().is_process_running()`:** Checks if a specific process is currently running.

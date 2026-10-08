@@ -56,7 +56,7 @@ def test_take_and_save_screenshot():
             screen.take_screenshot(save_path = save_path)
             success_message(f"Screenshot saved at: {save_path}")
         except Exception as error: error_message(f"Error taking screenshot: {error}")
-    
+
     start_stop_script(take_and_save_screenshot, "Take screenshot")
 
 def test_locate_image():
@@ -67,7 +67,7 @@ def test_locate_image():
         if result[0] is not None and result[1] is not None:
             success_message(f"Image found at position ({result[0]}; {result[1]})")
         else: error_message("Image not found")
-    
+
     start_stop_script(locate_image, "Locate image on screen")
 
 def test_read_text():
@@ -77,7 +77,7 @@ def test_read_text():
         text = screen.read_text()
         print([("Text on screen:", {"bold": True}), (f" {text}", {})])
         wait_for_key()
-    
+
     start_stop_script(read_text, "Read text from screen")
 
 def test_locate_text():
@@ -89,7 +89,7 @@ def test_locate_text():
         if x is not None and y is not None:
             success_message(f"Text \"{text}\" found at position ({x}; {y})")
         else: error_message(f"Text \"{text}\" not found")
-    
+
     start_stop_script(locate_text, "Locate text on screen")
 
 def test_get_resolution():
@@ -114,7 +114,7 @@ def test_pixel_matches_color():
         matches = screen_info.pixel_matches_color(x, y, expected_color = expected)
         if matches: success_message(f"Pixel at ({x}; {y}) matches {expected}.")
         else: error_message(f"Pixel at ({x}; {y}) does not match {expected}.")
-    
+
     start_stop_script(pixel_matches_color, "Check if pixel matches color")
 
 def test_on_screen():

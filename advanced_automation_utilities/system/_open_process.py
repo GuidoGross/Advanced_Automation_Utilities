@@ -10,5 +10,5 @@ class _OpenProcess(_SystemAction):
             raise FileNotFoundError(
                 f"The executable file \"{self.process_path}\" does not exist or could not be found."
             )
-    
+
     def execute(self): _open_process(self.process_path)

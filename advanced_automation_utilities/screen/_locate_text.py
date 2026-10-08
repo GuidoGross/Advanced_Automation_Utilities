@@ -11,7 +11,7 @@ class _LocateText(_ScreenAction):
         self.exact_match = exact_match
         self.monitor_index = monitor_index
         _validate_between_range(monitor_index = self.monitor_index)
-    
+
     def execute(self):
         if not self.text.strip(): raise ValueError("Text cannot be empty.")
         result = _run_ocr_on_region(self.region, self.monitor_index)

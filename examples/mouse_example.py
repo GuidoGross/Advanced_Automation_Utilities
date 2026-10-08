@@ -48,7 +48,7 @@ def test_click():
         mouse_physics = MOUSE_NORMAL
         mouse = Mouse(mouse_physics)
         mouse.click(300, 600)
-    
+
     start_stop_script(click, "Click")
 
 def test_double_click():
@@ -56,7 +56,7 @@ def test_double_click():
         mouse_physics = MOUSE_NORMAL
         mouse = Mouse(mouse_physics)
         mouse.double_click(300, 600)
-    
+
     start_stop_script(double_click, "Double click")
 
 def test_right_click():
@@ -64,7 +64,7 @@ def test_right_click():
         mouse_physics = MOUSE_NORMAL
         mouse = Mouse(mouse_physics)
         mouse.right_click(300, 600)
-    
+
     start_stop_script(right_click, "Right click")
 
 def test_middle_click():
@@ -72,7 +72,7 @@ def test_middle_click():
         mouse_physics = MOUSE_NORMAL
         mouse = Mouse(mouse_physics)
         mouse.middle_click(300, 600)
-    
+
     start_stop_script(middle_click, "Middle click")
 
 def test_drag():
@@ -80,7 +80,7 @@ def test_drag():
         mouse_physics = MOUSE_NORMAL
         mouse = Mouse(mouse_physics)
         mouse.drag_and_drop(300, 600, 600, 600)
-    
+
     start_stop_script(drag, "Drag")
 
 def test_scroll_until():
@@ -91,7 +91,7 @@ def test_scroll_until():
         mouse.scroll_until(condition_function = lambda: False, direction = "up", timeout = 2.5)
         mouse.scroll_until(condition_function = lambda: False, direction = "right", timeout = 2.5)
         mouse.scroll_until(condition_function = lambda: False, direction = "left", timeout = 2.5)
-    
+
     start_stop_script(scroll_until, "Scroll until a condition is met")
 
 def test_wander_until():
@@ -99,7 +99,7 @@ def test_wander_until():
         mouse_physics = MOUSE_NORMAL
         mouse = Mouse(mouse_physics)
         mouse.wander_until(condition_function = lambda: False, timeout = 10)
-    
+
     start_stop_script(wander_until, "Wander until a condition is met")
 
 def test_get_pointer_info():
@@ -121,7 +121,7 @@ def test_get_pointer_info():
             (f"■ {hexadecimal_pixel_color}", {"color": hexadecimal_pixel_color})
         ])
         wait_for_key()
-    
+
     start_stop_script(get_pointer_info, "Get pointer information")
 
 def test_is_pointer_on_screen():
@@ -138,7 +138,7 @@ def test_is_pointer_on_screen():
             (" inside the screen", {})
         ], alignment = "center")
         wait_for_key()
-    
+
     start_stop_script(is_pointer_on_screen, "Check if pointer is inside the screen")
 
 if __name__ == "__main__": main()

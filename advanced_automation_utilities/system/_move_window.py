@@ -6,5 +6,5 @@ class _MoveWindow(_SystemAction):
         self.window_title = window_title
         self.x = x
         self.y = y
-    
+
     def execute(self): _move_window(self.window_title, self.x, self.y)

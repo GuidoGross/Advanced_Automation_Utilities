@@ -40,7 +40,7 @@ def test_press_key():
         keyboard_physics = KEYBOARD_NORMAL
         keyboard = Keyboard(keyboard_physics)
         keyboard.press_key("a")
-    
+
     start_stop_script(press_key, "Press key")
 
 def test_hold_and_release_key():
@@ -49,7 +49,7 @@ def test_hold_and_release_key():
         keyboard = Keyboard(keyboard_physics)
         keyboard.hold_key("a")
         keyboard.release_key("a")
-    
+
     start_stop_script(hold_key, "Hold and release key")
 
 def test_hotkey():
@@ -57,7 +57,7 @@ def test_hotkey():
         keyboard_physics = KEYBOARD_NORMAL
         keyboard = Keyboard(keyboard_physics)
         keyboard.hotkey("ctrl", "c")
-    
+
     start_stop_script(hotkey, "Execute hotkey")
 
 def test_write():
@@ -65,7 +65,7 @@ def test_write():
         keyboard_physics = KEYBOARD_NORMAL
         keyboard = Keyboard(keyboard_physics)
         keyboard.write("By writing this text, very advanced simulated errors will be generated.")
-    
+
     start_stop_script(write, "Write text")
 
 def test_is_key_pressed():
@@ -82,7 +82,7 @@ def test_is_key_pressed():
             (" pressed", {})
         ], alignment = "center")
         wait_for_key()
-    
+
     start_stop_script(is_key_pressed, "Check if a key is pressed")
 
 if __name__ == "__main__": main()

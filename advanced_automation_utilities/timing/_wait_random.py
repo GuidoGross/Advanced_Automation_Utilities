@@ -12,7 +12,7 @@ class _WaitRandom(_TimingAction):
         )
         if self.minimum_duration > self.maximum_duration:
             raise ValueError("Minimum duration cannot be greater than maximum duration.")
-    
+
     def execute(self, stop_event = None):
         _Wait(
             random.uniform(self.minimum_duration, self.maximum_duration)).execute(stop_event = stop_event

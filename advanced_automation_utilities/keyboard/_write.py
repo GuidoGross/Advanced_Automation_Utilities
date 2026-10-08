@@ -14,7 +14,7 @@ class _Write(_KeyboardAction):
     def __init__(self, text, physics = None):
         super().__init__(physics = physics)
         self.text = text
-    
+
     def execute(self):
         timing = Timing()
         correction_physics, fast_navigation_physics = self._setup_physics()
@@ -30,7 +30,7 @@ class _Write(_KeyboardAction):
             if index < len(self.text) - 1:
                 self._wait_press_delay(timing)
             index += 1
-    
+
     def _setup_physics(self):
         correction_physics = replace(
             self.physics,
@@ -42,14 +42,14 @@ class _Write(_KeyboardAction):
             press_delay = self.physics.press_delay / self._FAST_NAVIGATION_SPEED_DIVISOR
         )
         return correction_physics, fast_navigation_physics
-    
+
     def _wait_press_delay(self, timing, custom_physics = None):
         physics = custom_physics or self.physics
         delay = physics.press_delay
         if physics.press_delay_variation > 0:
             delay = _apply_variation(delay, physics.press_delay_variation)
         timing.wait(max(0, delay))
-    
+
     def _simulate_typing_error(
         self, index, correct_character, timing, correction_physics, fast_navigation_physics
     ):
@@ -81,7 +81,7 @@ class _Write(_KeyboardAction):
             )
         timing.wait(max(0, after_correction_delay))
         return index + extra_characters_typed + 1
-    
+
     def _type_extra_characters(self, current_index, timing):
         extra_characters_typed = 0
         while current_index + 1 + extra_characters_typed < len(self.text):
@@ -91,7 +91,7 @@ class _Write(_KeyboardAction):
                 extra_characters_typed += 1
             else: break
         return extra_characters_typed
-    
+
     def _correct_with_backspace(
         self,
         correct_character,
@@ -108,7 +108,7 @@ class _Write(_KeyboardAction):
         for j in range(extra_characters_typed):
             self._wait_press_delay(timing)
             _send_unicode(self.text[current_index + 1 + j])
-    
+
     def _correct_with_arrows(
         self,
         correct_character,

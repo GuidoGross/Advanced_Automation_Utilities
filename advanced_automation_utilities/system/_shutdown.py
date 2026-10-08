@@ -6,5 +6,5 @@ class _Shutdown(_SystemAction):
     def __init__(self, delay = 0):
         self.delay = delay
         _validate_between_range(delay = delay)
-    
+
     def execute(self): _shutdown(self.delay)
