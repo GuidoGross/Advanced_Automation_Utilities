@@ -13,10 +13,10 @@ permissions:
 
 jobs:
   sync:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Mirror wiki directory
         env:
           WIKI_DEPLOY_TOKEN: ${{secrets.WIKI_DEPLOY_TOKEN}}
