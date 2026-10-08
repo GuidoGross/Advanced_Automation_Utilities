@@ -14,9 +14,9 @@ repos:
         args: [--fix=no]
   - repo: local
     hooks:
-      - id: clean-temporary-folders
-        name: Clean temporary folders
-        entry: powershell.exe -NoProfile -ExecutionPolicy Bypass -File delete_temporal_folders.ps1
+      - id: delete-temporary-folders
+        name: Delete temporary folders
+        entry: powershell.exe -NoProfile -ExecutionPolicy Bypass -File delete_temporary_folders.ps1
         language: system
         pass_filenames: false
         always_run: true
