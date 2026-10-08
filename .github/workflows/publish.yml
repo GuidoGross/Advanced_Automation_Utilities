@@ -26,7 +26,7 @@ jobs:
       - name: Detect a package version change
         id: version
         env:
-          BEFORE_SHA: ${{ github.event.before }}
+          BEFORE_SHA: ${{github.event.before}}
         run: |
           if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -48,8 +48,8 @@ jobs:
           changed = old_version != new_version
           print(f"Package version: {old_version} -> {new_version}")
 
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"changed={str(changed).lower()}\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding = "utf-8") as output:
+              output.write(f"changed = {str(changed).lower()}\n")
           PY
       - name: Build distributions
         if: steps.version.outputs.changed == 'true'

@@ -21,19 +21,19 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           python -m pip install --upgrade pip build
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
           python -m build
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
       - name: Install and import on the fresh runner
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $wheels = @(Get-ChildItem -Path dist -Filter "*.whl")
-          if ($wheels.Count -ne 1) { throw "Expected one wheel, found $($wheels.Count)." }
+          if ($wheels.Count -ne 1) {throw "Expected one wheel, found $($wheels.Count)."}
 
           python -m pip install $wheels[0].FullName
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
 
           Set-Location $env:RUNNER_TEMP
           python -c "import advanced_automation_utilities"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
