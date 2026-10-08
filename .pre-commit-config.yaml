@@ -2,16 +2,16 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      - id: check-yaml
-      - id: check-toml
-      - id: check-merge-conflict
-      - id: trailing-whitespace
       - id: check-ast
-      - id: debug-statements
-      - id: detect-private-key
+      - id: check-toml
+      - id: check-yaml
       - id: check-illegal-windows-names
+      - id: trailing-whitespace
       - id: mixed-line-ending
         args: [--fix=no]
+      - id: debug-statements
+      - id: detect-private-key
+      - id: check-merge-conflict
   - repo: local
     hooks:
       - id: delete-temporary-folders
