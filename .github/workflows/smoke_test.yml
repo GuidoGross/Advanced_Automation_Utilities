@@ -2,6 +2,7 @@ name: Smoke test
 
 on:
   push:
+  workflow_dispatch:
 
 permissions:
   contents: read
