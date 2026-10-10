@@ -28,8 +28,14 @@ settings.register_profile(
     suppress_health_check = [HealthCheck.function_scoped_fixture]
 )
 settings.register_profile(
-    "continuous_integration",
+    "pre_commit",
     max_examples = 250,
+    deadline = None,
+    suppress_health_check = [HealthCheck.function_scoped_fixture]
+)
+settings.register_profile(
+    "post_commit",
+    max_examples = 1000,
     deadline = None,
     suppress_health_check = [HealthCheck.function_scoped_fixture]
 )

@@ -2,6 +2,11 @@ name: Smoke test
 
 on:
   push:
+    paths:
+      - "advanced_automation_utilities/**"
+      - "pyproject.toml"
+      - "README.md"
+      - ".github/workflows/smoke_test.yml"
   workflow_dispatch:
 
 permissions:

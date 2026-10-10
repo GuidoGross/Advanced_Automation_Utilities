@@ -1,0 +1,48 @@
+name: Unit tests
+
+on:
+  push:
+    paths:
+      - "advanced_automation_utilities/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - ".pre-commit-config.yaml"
+      - "README.md"
+      - ".github/workflows/unit_tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.15-dev"
+          allow-prereleases: true
+      - name: Install project and development dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+
+          $is_prerelease = python -c "import sys; print(sys.version_info.releaselevel != 'final')"
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          if ($is_prerelease -eq "True") {
+            python -m pip install --ignore-requires-python -e ".[dev]"
+          } else {
+            python -m pip install -e ".[dev]"
+          }
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+      - name: Run unit tests with 1,000 Hypothesis examples
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          & .\tests\run_tests.ps1 -HypothesisProfile post_commit
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}

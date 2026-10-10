@@ -1,5 +1,6 @@
 param(
-    [ValidateSet("development", "continuous_integration")] [string]$HypothesisProfile = "development"
+    [ValidateSet("development", "pre_commit", "post_commit")]
+    [string]$HypothesisProfile = "development"
 )
 
 $ErrorActionPreference = "Stop"

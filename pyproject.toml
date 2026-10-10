@@ -1,22 +1,26 @@
 [project]
 name = "advanced_automation_utilities"
-version = "1.3.8"
+version = "1.3.9"
 description = "A powerful, native Python library for Windows automation."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 keywords = [
+    "asynchrony",
     "automation",
-    "utilities",
-    "windows",
-    "mouse",
+    "bot",
     "keyboard",
+    "library",
+    "macro",
+    "mouse",
+    "physics-simulation",
+    "rpa",
     "screen",
-    "timing",
     "sound",
     "system",
-    "macro",
-    "bot",
-    "rpa"
+    "timing",
+    "utilities",
+    "utility-library",
+    "windows"
 ]
 authors = [{name = "Guido Iván Gross", email = "grossguidoivan@gmail.com"}]
 requires-python = ">= 3.15"

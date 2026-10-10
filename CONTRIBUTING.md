@@ -41,8 +41,26 @@ python -m pip install -e ".[dev]"
     pre-commit run --all-files
     ```
 
+The test runner uses the `development` profile by default (25 examples). The pre-commit hook uses the `pre_commit` profile (250 examples). GitHub Actions runs the `post_commit` profile (1.000 examples) on pushes that modify the package, tests, project metadata, README, pre-commit configuration, or unit-test workflow. To run each profile locally:
+
+- **`development`:**
+
+    ```powershell
+    .\tests\run_tests.ps1
+    ```
+- **`pre_commit`:**
+
+    ```powershell
+    .\tests\run_tests.ps1 -HypothesisProfile pre_commit
+    ```
+- **`post_commit`:**
+
+    ```powershell
+    .\tests\run_tests.ps1 -HypothesisProfile post_commit
+    ```
+
 > [!NOTE]
-> The configured hooks validate YAML and TOML syntax and reject merge-conflict markers. GitHub Actions also builds the package, installs it on a fresh Windows runner, and verifies that it imports on every push.
+> GitHub Actions also builds the package, installs it on a fresh Windows runner, and verifies that it imports on pushes that modify the package, project metadata, README, or smoke-test workflow.
 
 ## **Changes and pull requests**
 
@@ -51,7 +69,7 @@ python -m pip install -e ".[dev]"
 - Update the README.md, wiki, or examples when a change affects documented behavior or public APIs.
 - Explain the reason for new dependencies and keep compatibility with the supported Windows and Python versions in mind.
 - Describe the change, its motivation, and any compatibility impact in the pull request.
-- Test the affected behavior on Windows when possible. This repository does not currently define an automated test suite; state which checks or manual steps you performed and their results.
+- Test the affected behavior on Windows when possible, and state which checks or manual steps you performed and their results.
 
 ## **Legal**
 
