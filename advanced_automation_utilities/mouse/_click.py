@@ -8,9 +8,10 @@ class _Click(_BaseClick):
     def __init__(self, x = None, y = None, button = "left", clicks = 1, physics = None):
         super().__init__(x, y, button, physics)
         self.clicks = clicks
-        _validate_between_range(self.clicks)
+        _validate_between_range(clicks = self.clicks)
 
     def execute(self):
+        if self.clicks == 0: return
         self._move_if_needed()
         hold_click = _HoldClick(button = self.button, physics = self.physics)
         release_click = _ReleaseClick(button = self.button, physics = self.physics)

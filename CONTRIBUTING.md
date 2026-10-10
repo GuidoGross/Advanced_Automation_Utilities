@@ -14,17 +14,17 @@
 
 ## **Development environment**
 
-The library supports Windows 10 or higher and Python 3.11 or higher. Clone the repository and change to its directory:
+The library supports Windows 10 or higher and Python 3.15 or higher. Clone the repository and change to its directory:
 
 ```powershell
 git clone https://github.com/GuidoGross/Advanced_Automation_Utilities.git
 cd Advanced_Automation_Utilities
 ```
 
-From the repository directory, install the project and its dependencies in editable mode using your configured Python installation:
+From the repository directory, install the project and its development dependencies in editable mode using your configured Python installation:
 
 ```powershell
-python -m pip install -e .
+python -m pip install -e ".[dev]"
 ```
 
 ## **Automated checks**
@@ -32,7 +32,6 @@ python -m pip install -e .
 - **Install:**
 
     ```powershell
-    pip install pre-commit
     pre-commit install
     ```
 

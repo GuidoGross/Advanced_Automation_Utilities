@@ -44,7 +44,7 @@
 
 ### **Python version**
 
-Python (v3.11 or higher)
+Python (v3.15 or higher)
 
 ### **Operating System**
 

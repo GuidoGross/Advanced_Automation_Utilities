@@ -134,24 +134,31 @@ class _QueueableController:
 
     def _worker_loop(self):
         while True:
-            task = self._task_queue.get()
-            if task is None: break
-            if task._cancelled or KILL_SWITCH_EVENT.is_set():
-                task._done_event.set()
-                continue
+            task = None
             try:
-                for action in task._actions:
-                    if task._cancelled or KILL_SWITCH_EVENT.is_set(): break
-                    import inspect
-                    if "stop_event" in inspect.signature(action.execute).parameters:
-                        result = action.execute(stop_event = task._cancel_event)
-                    else: result = action.execute()
-                    task.results.append(result)
-                    task.last_result = result
-            except BaseException as error:
-                task._exception = error
-                if not isinstance(error, (Exception, KillSwitchTriggered)): raise
-            finally: task._done_event.set()
+                task = self._task_queue.get()
+                if task is None: break
+                if task._cancelled or KILL_SWITCH_EVENT.is_set():
+                    task._done_event.set()
+                    continue
+                try:
+                    for action in task._actions:
+                        if task._cancelled or KILL_SWITCH_EVENT.is_set(): break
+                        import inspect
+                        if "stop_event" in inspect.signature(action.execute).parameters:
+                            result = action.execute(stop_event = task._cancel_event)
+                        else: result = action.execute()
+                        task.results.append(result)
+                        task.last_result = result
+                except BaseException as error:
+                    task._exception = error
+                    if not isinstance(error, (Exception, KillSwitchTriggered)): raise
+                finally: task._done_event.set()
+            except BaseException:
+                if task is not None and not task._done_event.is_set():
+                    task._exception = KillSwitchTriggered()
+                    task._done_event.set()
+                continue
 
     def _execute_or_queue(self, action):
         if self._queue_mode: self._queue.append(action)

@@ -1,7 +1,6 @@
 from ._screen_action import _ScreenAction
 from .._utilities import _validate_region, _validate_between_range
 from ..backend.windows._screen import _take_screenshot
-import mss.base
 
 class _TakeScreenshot(_ScreenAction):
     def __init__(self, region = None, monitor_index = 0, save_path = None):

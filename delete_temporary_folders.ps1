@@ -35,6 +35,8 @@ function clean_pycache_folders {
     $folders_to_delete = @()
     Get-ChildItem -Path $project_root -Filter "__pycache__" -Directory -Recurse | ForEach-Object {$folders_to_delete += $_.FullName}
     Get-ChildItem -Path $project_root -Filter ".pytest_cache" -Directory -Recurse | ForEach-Object {$folders_to_delete += $_.FullName}
+    Get-ChildItem -Path $project_root -Filter ".hypothesis" -Directory -Recurse | ForEach-Object {$folders_to_delete += $_.FullName}
+    Get-ChildItem -Path $project_root -Filter "build" -Directory -Recurse | ForEach-Object {$folders_to_delete += $_.FullName}
     Get-ChildItem -Path $project_root -Filter "*.egg-info" -Directory -Recurse | ForEach-Object {$folders_to_delete += $_.FullName}
     $folders_to_delete | ForEach-Object {if (Test-Path $_) {Remove-Item -Path $_ -Recurse -Force -ErrorAction SilentlyContinue}}
     $duration = (Get-Date) - $current_step_start_time

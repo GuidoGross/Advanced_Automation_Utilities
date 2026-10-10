@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.11"
+          python-version: "3.15"
       - name: Build package
         shell: pwsh
         run: |
@@ -36,5 +36,5 @@ jobs:
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
 
           Set-Location $env:RUNNER_TEMP
-          python -c "import advanced_automation_utilities"
+          python -c "import sys; import advanced_automation_utilities; lazy_modules = {'mss', 'numpy', 'cv2', 'winrt', 'pyperclip', 'pygetwindow', 'psutil', 'winsound'}; loaded = lazy_modules.intersection(sys.modules); assert not loaded, f'Unexpected eager imports: {sorted(loaded)}'"
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}

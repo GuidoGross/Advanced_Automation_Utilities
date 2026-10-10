@@ -1,7 +1,7 @@
 from .timing_info import TimingInfo
-from tui_utilities import print, decimal_format
 from functools import wraps
 from typing import Callable
+lazy from tui_utilities import print, decimal_format
 
 def measure_time(function: Callable) -> Callable:
     """

@@ -1,7 +1,7 @@
-import winsound
 import ctypes
-import base64
-import subprocess
+lazy import winsound
+lazy import base64
+lazy import subprocess
 
 def _play_beep_sound(frequency, duration): winsound.Beep(frequency, int(duration * 1000))
 

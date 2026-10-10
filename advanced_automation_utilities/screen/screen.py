@@ -3,7 +3,7 @@ from ._read_text import _ReadText
 from ._locate_text import _LocateText
 from ._take_screenshot import _TakeScreenshot
 from typing import Optional, Union
-import mss.base
+lazy import mss.base
 
 class Screen:
     """

@@ -2,7 +2,7 @@ from .._utilities import _validate_options, _validate_between_range, _validate_r
 from ..backend.windows._screen import _get_screen_resolution, _get_pixel_color, _get_work_area
 from .._typing import ColorFormat
 from typing import Union, Optional
-import mss
+lazy import mss
 
 class ScreenInfo:
     """

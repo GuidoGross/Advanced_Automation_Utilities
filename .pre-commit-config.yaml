@@ -21,6 +21,14 @@ repos:
           - github.com/wasilibs/go-shellcheck/cmd/shellcheck@v0.11.1
   - repo: local
     hooks:
+      - id: run-tests
+        name: Run unit tests
+        entry: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/run_tests.ps1 -HypothesisProfile continuous_integration
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
       - id: delete-temporary-folders
         name: Delete temporary folders
         entry: powershell.exe -NoProfile -ExecutionPolicy Bypass -File delete_temporary_folders.ps1

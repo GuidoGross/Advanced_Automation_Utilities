@@ -1,10 +1,10 @@
 from ...exceptions import WindowNotFoundError
-import pyperclip
-import pygetwindow
-import psutil
 import os
 import ctypes
-import subprocess
+lazy import pyperclip
+lazy import pygetwindow
+lazy import psutil
+lazy import subprocess
 
 def _get_clipboard_text(): return pyperclip.paste()
 

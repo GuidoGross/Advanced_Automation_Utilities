@@ -1,13 +1,13 @@
 from ..._utilities import _validate_between_range
-import asyncio
-import mss
 import ctypes
 import ctypes.wintypes
-import numpy
-import cv2
-from winrt.windows.graphics.imaging import SoftwareBitmap, BitmapPixelFormat, BitmapAlphaMode
-from winrt.windows.storage.streams import DataWriter
-from winrt.windows.media.ocr import OcrEngine
+lazy import asyncio
+lazy import mss
+lazy import numpy
+lazy import cv2
+lazy from winrt.windows.graphics.imaging import SoftwareBitmap, BitmapPixelFormat, BitmapAlphaMode
+lazy from winrt.windows.storage.streams import DataWriter
+lazy from winrt.windows.media.ocr import OcrEngine
 
 _SPI_GETWORKAREA = 48
 
