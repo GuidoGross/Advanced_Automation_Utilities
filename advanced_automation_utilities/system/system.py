@@ -1,5 +1,5 @@
 from ._set_clipboard_text import _SetClipboardText
-from ._open_process import _OpenProcess
+from ._open_file import _OpenFile
 from ._kill_process import _KillProcess
 from ._focus_window import _FocusWindow
 from ._resize_window import _ResizeWindow
@@ -58,17 +58,17 @@ class System(_QueueableController):
         """
         return self._execute_or_queue(_SetClipboardText(text = text))
 
-    def open_process(self, process_path: str) -> Self:
+    def open_file(self, file_path: str) -> Self:
         """
-        **`System().open_process()`:** Opens a process or file.
+        **`System().open_file()`:** Opens a file or starts an executable.
 
         **Description:**
 
-        Uses `os.startfile` internally to launch applications or open files with their default program.
+        Starts `.exe` and `.com` files with `subprocess.Popen`, and `.bat` and `.cmd` files through `cmd.exe`. Each uses the file's directory as the working directory. Other files are opened with their default program through `os.startfile`.
 
         **Arguments:**
 
-        - **`executable_path` (`str`)**
+        - **`file_path` (`str`)**
 
         **Returns:**
 
@@ -77,10 +77,10 @@ class System(_QueueableController):
         **Example:**
 
         ```python
-        System().open_process(process_path = "notepad.exe")
+        System().open_file(file_path = "notepad.exe")
         ```
         """
-        return self._execute_or_queue(_OpenProcess(process_path = process_path))
+        return self._execute_or_queue(_OpenFile(file_path = file_path))
 
     def kill_process(self, process: str, force: bool = True) -> Self:
         """

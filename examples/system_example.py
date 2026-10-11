@@ -88,7 +88,7 @@ def test_process_and_window_management():
     process_name = "notepad.exe"
     print([("Opening ", {}), (f"{process_name}", {"color": "#00bfff"})], alignment = "center")
     try:
-        system.open_process(process_name)
+        system.open_file(process_name)
         success_message(f"{process_name.capitalize()} opened successfully.")
         timing.wait(1)
         window_title = system_info.active_window_title

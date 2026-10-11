@@ -1,6 +1,7 @@
-from advanced_automation_utilities import WindowNotFoundError
 from advanced_automation_utilities.system import System
-from advanced_automation_utilities.system._open_process import _OpenProcess
+from advanced_automation_utilities.system._open_file import _OpenFile
+from advanced_automation_utilities import WindowNotFoundError
+import advanced_automation_utilities.backend.windows._system as _system_backend
 from hypothesis import strategies, given
 import pytest
 
@@ -10,11 +11,57 @@ def test_clipboard_round_trips_whatever_text_is_set(text, fake_system):
     system.set_clipboard_text(text)
     assert fake_system.clipboard == text
 
-def test_open_process_rejects_a_path_that_does_not_exist_and_is_not_on_path(tmp_path):
+def test_open_file_rejects_a_path_that_does_not_exist_and_is_not_on_path(tmp_path):
     with pytest.raises(FileNotFoundError):
-        _OpenProcess(str(tmp_path / "definitely_not_a_real_executable.exe"))
+        _OpenFile(str(tmp_path / "definitely_not_a_real_executable.exe"))
 
-def test_open_process_accepts_a_name_resolvable_via_path(): _OpenProcess("python")
+def test_open_file_accepts_a_name_resolvable_via_path(): _OpenFile("python")
+
+@pytest.mark.parametrize("extension", [".exe", ".com", ".bat", ".cmd"])
+def test_open_file_starts_executable_with_its_parent_as_working_directory(
+    extension,
+    tmp_path,
+    monkeypatch
+):
+    executable_path = tmp_path / f"program{extension}"
+    executable_path.touch()
+    popen_calls = []
+    startfile_calls = []
+    monkeypatch.setattr(
+        _system_backend.subprocess,
+        "Popen",
+        lambda command, cwd: popen_calls.append((command, cwd))
+    )
+    monkeypatch.setattr(
+        _system_backend.os,
+        "startfile",
+        lambda path: startfile_calls.append(path)
+    )
+    _system_backend._open_file(str(executable_path))
+    expected_command = (
+        ["cmd.exe", "/d", "/c", str(executable_path)] if extension in {".bat", ".cmd"}  else [str(executable_path)]
+    )
+    assert popen_calls == [(expected_command, str(tmp_path))]
+    assert startfile_calls == []
+
+def test_open_file_opens_non_executable_file_with_its_default_application(tmp_path, monkeypatch):
+    file_path = tmp_path / "document.txt"
+    file_path.touch()
+    popen_calls = []
+    startfile_calls = []
+    monkeypatch.setattr(
+        _system_backend.subprocess,
+        "Popen",
+        lambda *args, **kwargs: popen_calls.append((args, kwargs))
+    )
+    monkeypatch.setattr(
+        _system_backend.os,
+        "startfile",
+        lambda path: startfile_calls.append(path)
+    )
+    _system_backend._open_file(str(file_path))
+    assert popen_calls == []
+    assert startfile_calls == [str(file_path)]
 
 @pytest.mark.parametrize("action_name, call", [
     ("focus_window", lambda system, title: system.focus_window(title)),

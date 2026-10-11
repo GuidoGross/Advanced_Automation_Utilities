@@ -34,17 +34,17 @@ System().set_clipboard_text(text = "Text to paste later.")
 
 ---
 
-### **`System().open_process()`**
+### **`System().open_file()`**
 
-Opens a process or file.
+Opens a file or starts an executable.
 
 **Description:**
 
-Uses `os.startfile` internally to launch applications or open files with their default program.
+Starts `.exe` and `.com` files with `subprocess.Popen`, and `.bat` and `.cmd` files through `cmd.exe`. Each uses the file's directory as the working directory. Other files are opened with their default program through `os.startfile`.
 
 **Arguments:**
 
-- **`executable_path` (`str`)**
+- **`file_path` (`str`)**
 
 **Returns:**
 
@@ -53,7 +53,7 @@ Uses `os.startfile` internally to launch applications or open files with their d
 **Example:**
 
 ```python
-System().open_process(process_path = "notepad.exe")
+System().open_file(file_path = "notepad.exe")
 ```
 
 ---

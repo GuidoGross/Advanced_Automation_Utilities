@@ -1,5 +1,6 @@
 from ...exceptions import WindowNotFoundError
 import os
+import shutil
 import ctypes
 lazy import pyperclip
 lazy import pygetwindow
@@ -22,7 +23,14 @@ def _is_process_running(process):
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess): pass
     return False
 
-def _open_process(executable_path): os.startfile(executable_path)
+def _open_file(file_path):
+    resolved_path = shutil.which(file_path) or os.path.abspath(file_path)
+    extension = os.path.splitext(resolved_path)[1].lower()
+    if os.path.isfile(resolved_path) and extension in {".exe", ".com"}:
+        subprocess.Popen([resolved_path], cwd = os.path.dirname(resolved_path))
+    elif os.path.isfile(resolved_path) and extension in {".bat", ".cmd"}:
+        subprocess.Popen(["cmd.exe", "/d", "/c", resolved_path], cwd = os.path.dirname(resolved_path))
+    else: os.startfile(file_path)
 
 def _kill_process(process_name, force):
     lower_case_process = process_name.lower()
