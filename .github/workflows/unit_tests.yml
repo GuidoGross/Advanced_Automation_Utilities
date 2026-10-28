@@ -33,7 +33,6 @@ jobs:
           $ErrorActionPreference = "Stop"
           python -m pip install --upgrade pip
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
-
           $is_prerelease = python -c "import sys; print(sys.version_info.releaselevel != 'final')"
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
           if ($is_prerelease -eq "True") {
@@ -42,7 +41,7 @@ jobs:
             python -m pip install -e ".[dev]"
           }
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
-      - name: Run unit tests with 1,000 Hypothesis examples
+      - name: Run unit tests with 1.000 Hypothesis examples
         shell: pwsh
         env:
           BEFORE_SHA: ${{github.event.before}}
