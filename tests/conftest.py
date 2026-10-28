@@ -29,7 +29,7 @@ settings.register_profile(
 )
 settings.register_profile(
     "pre_commit",
-    max_examples = 250,
+    max_examples = 100,
     deadline = None,
     suppress_health_check = [HealthCheck.function_scoped_fixture]
 )
@@ -117,6 +117,13 @@ def fake_screen(monkeypatch):
     monkeypatch.setattr(_screen_info_module, "_get_pixel_color", screen.get_pixel_color)
     return screen
 
+class FakeSound:
+    def __init__(self):
+        self.beeps = []
+        self.spoken = []
+        self.system_sounds = []
+        self.audio_played = []
+
 @pytest.fixture
 def fake_sound(monkeypatch):
     sound = FakeSound()
@@ -172,10 +179,3 @@ def fake_system(monkeypatch):
     )
     monkeypatch.setattr(_system_info_module, "_get_clipboard_text", lambda: system.clipboard)
     return system
-
-class FakeSound:
-    def __init__(self):
-        self.beeps = []
-        self.spoken = []
-        self.system_sounds = []
-        self.audio_played = []

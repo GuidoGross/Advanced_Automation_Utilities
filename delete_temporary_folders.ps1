@@ -39,6 +39,10 @@ function clean_pycache_folders {
     Get-ChildItem -Path $project_root -Filter "build" -Directory -Recurse | ForEach-Object {$folders_to_delete += $_.FullName}
     Get-ChildItem -Path $project_root -Filter "*.egg-info" -Directory -Recurse | ForEach-Object {$folders_to_delete += $_.FullName}
     $folders_to_delete | ForEach-Object {if (Test-Path $_) {Remove-Item -Path $_ -Recurse -Force -ErrorAction SilentlyContinue}}
+    $coverage_file = Join-Path $project_root ".coverage"
+    if (Test-Path $coverage_file -PathType Leaf) {
+        Remove-Item -Path $coverage_file -Force -ErrorAction SilentlyContinue
+    }
     $duration = (Get-Date) - $current_step_start_time
     Write-Host "${bold}Temporary folders removed in:${/bold} $($duration.TotalMilliseconds.ToString("N0", [cultureinfo]::GetCultureInfo("es-ES")))ms${reset_style}" -ForegroundColor Green
     separator

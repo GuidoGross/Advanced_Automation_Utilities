@@ -5,7 +5,7 @@ from .timing._wait_random import _WaitRandom
 from .timing._wait_until import _WaitUntil
 from ._kill_switch_event import KILL_SWITCH_EVENT
 from .exceptions import KillSwitchTriggered
-from typing import Any, Callable, Self
+from typing import Any, Optional, Callable, Self
 import queue
 import threading
 
@@ -13,8 +13,8 @@ class _QueueableController:
     def __init__(self):
         self._queue_mode: bool = False
         self._queue: list[Any] = []
-        self._task_queue: queue.Queue[Task] = queue.Queue()
-        self._worker_thread: threading.Thread | None = None
+        self._task_queue: queue.Queue[Optional[Task]] = queue.Queue()
+        self._worker_thread: Optional[threading.Thread] = None
         self.results: list[Any] = []
         self.last_result: Any = None
 

@@ -1,9 +1,39 @@
 from advanced_automation_utilities.timing._wait import _Wait
 from advanced_automation_utilities.timing._wait_until import _WaitUntil
+from advanced_automation_utilities.timing import measure_time
 from advanced_automation_utilities._kill_switch_event import KILL_SWITCH_EVENT
-from tui_utilities import decimal_format
+import advanced_automation_utilities.timing.timing as timing_module
+import advanced_automation_utilities.timing._timing_action as timing_action_module
+import advanced_automation_utilities.timing._wait_random as wait_random_module
+from types import SimpleNamespace
+import pytest
 import threading
 import time
+
+def test_timing_facade_and_wait_random(monkeypatch):
+    recorded_waits = []
+    monkeypatch.setattr(
+        timing_module,
+        "_WaitRandom",
+        lambda *arguments, **keyword_arguments: SimpleNamespace(
+            execute = lambda: recorded_waits.append((arguments, keyword_arguments))
+        )
+    )
+    monkeypatch.setattr(
+        timing_module,
+        "_WaitUntil",
+        lambda *arguments, **keyword_arguments: SimpleNamespace(execute = lambda: True)
+    )
+    assert timing_module.Timing().wait_random(1, 2) is None
+    assert timing_module.Timing().wait_until(lambda: True) is True
+    assert recorded_waits == [((), {"minimum_duration": 1, "maximum_duration": 2})]
+    with pytest.raises(ValueError, match = "Minimum duration"): wait_random_module._WaitRandom(2, 1)
+
+def test_abstract_timing_action_probe():
+    class TimingActionProbe(timing_action_module._TimingAction):
+        def execute(self): return super().execute()
+
+    assert TimingActionProbe().execute() is None
 
 def test_wait_is_interrupted_promptly_by_the_kill_switch_instead_of_running_the_full_duration():
     threading.Timer(0.25, KILL_SWITCH_EVENT.set).start()
@@ -11,9 +41,7 @@ def test_wait_is_interrupted_promptly_by_the_kill_switch_instead_of_running_the_
     _Wait(5).execute()
     elapsed = time.perf_counter() - start_time
     KILL_SWITCH_EVENT.clear()
-    assert elapsed < 1, (
-        f"wait() took {decimal_format(elapsed, 2)}s -- the kill switch did not interrupt it promptly"
-    )
+    assert elapsed < 1
 
 def test_wait_until_returns_true_as_soon_as_the_condition_becomes_true():
     calls = {"count": 0}
@@ -43,3 +71,15 @@ def test_wait_until_stops_early_when_its_stop_event_is_set():
     elapsed = time.perf_counter() - start_time
     assert result is False
     assert elapsed < 0.5
+
+def test_measure_time_preserves_the_return_value_and_arguments():
+    @measure_time
+    def add(a, b): return a + b
+
+    assert add(2, 3) == 5
+
+def test_measure_time_does_not_swallow_exceptions():
+    @measure_time
+    def boom(): raise ValueError("Expected")
+
+    with pytest.raises(ValueError, match = "Expected"): boom()

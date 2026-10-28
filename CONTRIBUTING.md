@@ -41,7 +41,10 @@ python -m pip install -e ".[dev]"
     pre-commit run --all-files
     ```
 
-The test runner uses the `development` profile by default (25 examples). The pre-commit hook uses the `pre_commit` profile (250 examples). GitHub Actions runs the `post_commit` profile (1.000 examples) on pushes that modify the package, tests, project metadata, README, pre-commit configuration, or unit-test workflow. To run each profile locally:
+> [!NOTE]
+> The test runner uses the `development` profile by default (25 examples). The pre-commit hook uses the `pre_commit` profile (250 examples). The GitHub Actions workflow uses the `post_commit` profile (1.000 examples).
+
+**To run each profile locally:**
 
 - **`development`:**
 
@@ -58,6 +61,15 @@ The test runner uses the `development` profile by default (25 examples). The pre
     ```powershell
     .\tests\run_tests.ps1 -HypothesisProfile post_commit
     ```
+
+**To run the full test suite with line and branch coverage:**
+
+```powershell
+.\tests\run_coverage_analysis.ps1
+```
+
+> [!IMPORTANT]
+> Both the pre-commit hook and the GitHub Actions workflow automatically select test files based on changed files: changes within a module run that module's tests; Windows backend changes also run `test_windows_backends.py`; shared infrastructure changes run tests for affected modules, and unrecognized or test-configuration changes run the full suite.
 
 > [!NOTE]
 > GitHub Actions also builds the package, installs it on a fresh Windows runner, and verifies that it imports on pushes that modify the package, project metadata, README, or smoke-test workflow.

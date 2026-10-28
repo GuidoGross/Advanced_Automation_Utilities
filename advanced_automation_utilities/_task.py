@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 import threading
 
 class Task:
@@ -11,7 +11,7 @@ class Task:
         self._actions: list[Any] = []
         self._cancel_event: threading.Event = threading.Event()
         self._done_event: threading.Event = threading.Event()
-        self._exception: BaseException | None = None
+        self._exception: Optional[BaseException] = None
         self._cancelled: bool = False
         self.results: list[Any] = []
         self.last_result: Any = None

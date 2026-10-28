@@ -1,0 +1,609 @@
+from advanced_automation_utilities.exceptions import WindowNotFoundError
+import advanced_automation_utilities.backend.windows._mouse as mouse_backend
+import advanced_automation_utilities.backend.windows._keyboard as keyboard_backend
+import advanced_automation_utilities.backend.windows._screen as screen_backend
+import advanced_automation_utilities.backend.windows._sound as sound_backend
+import advanced_automation_utilities.backend.windows._system as system_backend
+from types import SimpleNamespace
+import ctypes
+import pytest
+import numpy
+import io
+import base64
+
+class _MouseUser32:
+    def __init__(self):
+        self.events = []
+        self.cursor_position = (17, -4)
+        self.set_positions = []
+
+    def mouse_event(self, *args): self.events.append(args)
+
+    def get_cursor_pos(self, pointer):
+        point = ctypes.cast(pointer, ctypes.POINTER(mouse_backend._Point)).contents
+        point.x, point.y = self.cursor_position
+
+    def set_cursor_pos(self, x, y): self.set_positions.append((x, y))
+
+def test_mouse_backend_translates_every_supported_command(monkeypatch):
+    user32 = _MouseUser32()
+    user32.GetCursorPos = user32.get_cursor_pos
+    user32.SetCursorPos = user32.set_cursor_pos
+    monkeypatch.setattr(mouse_backend.ctypes, "windll", SimpleNamespace(user32 = user32))
+    for button in ("left", "right", "middle", "unsupported"): mouse_backend._mouse_down(button)
+    for button in ("left", "right", "middle", "unsupported"): mouse_backend._mouse_up(button)
+    assert mouse_backend._get_cursor_position() == (17, -4)
+    mouse_backend._set_cursor_position(3.9, -2.8)
+    for direction in ("up", "down", "right", "left", "unsupported"):
+        mouse_backend._scroll(4.9, direction)
+    assert user32.events == [
+        (mouse_backend._LEFT_BUTTON_DOWN, 0, 0, 0, 0),
+        (mouse_backend._RIGHT_BUTTON_DOWN, 0, 0, 0, 0),
+        (mouse_backend._MIDDLE_BUTTON_DOWN, 0, 0, 0, 0),
+        (mouse_backend._LEFT_BUTTON_UP, 0, 0, 0, 0),
+        (mouse_backend._RIGHT_BUTTON_UP, 0, 0, 0, 0),
+        (mouse_backend._MIDDLE_BUTTON_UP, 0, 0, 0, 0),
+        (mouse_backend._WHEEL, 0, 0, 4, 0),
+        (mouse_backend._WHEEL, 0, 0, -4, 0),
+        (mouse_backend._HORIZONTAL_WHEEL, 0, 0, 4, 0),
+        (mouse_backend._HORIZONTAL_WHEEL, 0, 0, -4, 0)
+    ]
+    assert user32.set_positions == [(3, -2)]
+
+class _KeyboardUser32:
+    def __init__(self):
+        self.sent_inputs = []
+        self.key_states = {}
+        self.virtual_key_result = 0
+        self.next_hook = 99
+        self.hook_calls = []
+        self.message_results = []
+        self.translate_calls = 0
+        self.dispatch_calls = 0
+
+    def SendInput(self, count, pointer, _size):
+        array_type = keyboard_backend._Input * count
+        inputs = ctypes.cast(pointer, ctypes.POINTER(array_type)).contents
+        self.sent_inputs.extend(
+            (
+                item.keyboard_input.virtual_key_code,
+                item.keyboard_input.scan_code,
+                item.keyboard_input.flags
+            )
+            for item in inputs
+        )
+
+    def GetAsyncKeyState(self, key): return self.key_states.get(key, 0)
+
+    def VkKeyScanW(self, _code): return self.virtual_key_result
+
+    def SetWindowsHookExW(self, *arguments):
+        self.hook_calls.append(arguments)
+        return self.next_hook
+
+    def CallNextHookEx(self, *arguments):
+        self.hook_calls.append(arguments)
+        return 71
+
+    def GetMessageW(self, *_): return self.message_results.pop(0) if self.message_results else 0
+
+    def TranslateMessage(self, *_): self.translate_calls += 1
+
+    def DispatchMessageW(self, *_): self.dispatch_calls += 1
+
+def test_keyboard_backend_sends_keys_unicode_and_tracks_state(monkeypatch):
+    user32 = _KeyboardUser32()
+    monkeypatch.setattr(keyboard_backend, "_user32", user32)
+    keyboard_backend._send_key("not-a-key")
+    monkeypatch.setattr(keyboard_backend, "_get_virtual_key_code", lambda _: (0x41, 7))
+    keyboard_backend._send_key("A")
+    keyboard_backend._send_key("A", key_released = True)
+    assert user32.sent_inputs[:7] == [
+        (keyboard_backend._SHIFT_VIRTUAL_KEY, 0, 0),
+        (keyboard_backend._CONTROL_VIRTUAL_KEY, 0, 0),
+        (keyboard_backend._ALT_VIRTUAL_KEY, 0, 0),
+        (0x41, 0, 0),
+        (0x41, 0, keyboard_backend._KEY_UP),
+        (keyboard_backend._SHIFT_VIRTUAL_KEY, 0, keyboard_backend._KEY_UP),
+        (keyboard_backend._CONTROL_VIRTUAL_KEY, 0, keyboard_backend._KEY_UP)
+    ]
+    assert user32.sent_inputs[7] == (keyboard_backend._ALT_VIRTUAL_KEY, 0, keyboard_backend._KEY_UP)
+    user32.sent_inputs.clear()
+    monkeypatch.setattr(keyboard_backend, "_get_virtual_key_code", lambda _: (0x41, 1))
+    keyboard_backend._send_key("A")
+    assert user32.sent_inputs == [
+        (keyboard_backend._SHIFT_VIRTUAL_KEY, 0, 0),
+        (0x41, 0, 0)
+    ]
+    user32.sent_inputs.clear()
+    keyboard_backend._send_unicode("A😀")
+    assert [(key, scan, flags) for key, scan, flags in user32.sent_inputs] == [
+        (0, 0x41, keyboard_backend._UNICODE),
+        (0, 0x41, keyboard_backend._UNICODE | keyboard_backend._KEY_UP),
+        (0, 0xD83D, keyboard_backend._UNICODE),
+        (0, 0xD83D, keyboard_backend._UNICODE | keyboard_backend._KEY_UP),
+        (0, 0xDE00, keyboard_backend._UNICODE),
+        (0, 0xDE00, keyboard_backend._UNICODE | keyboard_backend._KEY_UP)
+    ]
+    monkeypatch.undo()
+    monkeypatch.setattr(keyboard_backend, "_user32", user32)
+    user32.virtual_key_result = 0x0201
+    assert keyboard_backend._get_virtual_key_code("SHIFT") == (keyboard_backend._SHIFT_VIRTUAL_KEY, 0)
+    assert keyboard_backend._get_virtual_key_code("?") == (1, 2)
+    user32.virtual_key_result = -1
+    assert keyboard_backend._get_virtual_key_code("?") is None
+    assert keyboard_backend._get_virtual_key_code("not-a-key") is None
+    monkeypatch.setattr(
+        keyboard_backend, "_get_virtual_key_code", lambda key: None if key == "bad" else (42, 0)
+    )
+    monkeypatch.setattr(keyboard_backend, "_key_states", {})
+    assert keyboard_backend._is_pressed("bad") is False
+    keyboard_backend._key_states[42] = True
+    assert keyboard_backend._is_pressed("key") is True
+    keyboard_backend._key_states[42] = False
+    user32.key_states[42] = keyboard_backend._KEY_PRESSED
+    assert keyboard_backend._is_pressed("key") is True
+    user32.key_states[42] = 0
+    assert keyboard_backend._is_pressed("key") is False
+
+def test_keyboard_backend_blocking_kill_switch_and_hook_lifecycle(monkeypatch):
+    user32 = _KeyboardUser32()
+    real_ensure_hook = keyboard_backend._ensure_hook
+    monkeypatch.setattr(keyboard_backend, "_user32", user32)
+    monkeypatch.setattr(keyboard_backend, "_blocked_keys", set())
+    ensure_calls = []
+    monkeypatch.setattr(keyboard_backend, "_ensure_hook", lambda: ensure_calls.append("ensure"))
+    monkeypatch.setattr(
+        keyboard_backend,
+        "_get_virtual_key_code",
+        lambda key: {"a": (65, 0), "ctrl": (17, 0), "bad": None}.get(key)
+    )
+    keyboard_backend._block_key("a")
+    keyboard_backend._block_key("bad")
+    keyboard_backend._unblock_key("a")
+    keyboard_backend._unblock_key("a")
+    keyboard_backend._unblock_key("bad")
+    assert ensure_calls == ["ensure"]
+    assert keyboard_backend._blocked_keys == set()
+    monkeypatch.setattr(keyboard_backend, "_kill_switch_enabled", False)
+    monkeypatch.setattr(keyboard_backend, "_kill_switch_key", 0)
+    monkeypatch.setattr(keyboard_backend, "_kill_switch_modifiers", [])
+    keyboard_backend._enable_kill_switch([])
+    keyboard_backend._enable_kill_switch(["bad"])
+    keyboard_backend._enable_kill_switch(["ctrl", "bad", "a"])
+    assert keyboard_backend._kill_switch_enabled is True
+    assert keyboard_backend._kill_switch_key == 65
+    assert keyboard_backend._kill_switch_modifiers == [17]
+    assert ensure_calls == ["ensure", "ensure"]
+    keyboard_backend._disable_kill_switch()
+    assert keyboard_backend._kill_switch_enabled is False
+
+    class FakeEvent:
+        def __init__(self):
+            self.clear_calls = 0
+            self.wait_calls = 0
+
+        def clear(self): self.clear_calls += 1
+
+        def wait(self): self.wait_calls += 1
+
+        def set(self): pass
+
+    class FakeThread:
+        def __init__(self, target, daemon):
+            self.target = target
+            self.daemon = daemon
+            self.started = False
+
+        def start(self): self.started = True
+
+        def is_alive(self): return False
+
+    event = FakeEvent()
+    monkeypatch.setattr(keyboard_backend, "_ensure_hook", real_ensure_hook)
+    monkeypatch.setattr(keyboard_backend, "_hook_ready_event", event)
+    monkeypatch.setattr(keyboard_backend.threading, "Thread", FakeThread)
+    monkeypatch.setattr(keyboard_backend, "_hook_thread", None)
+    keyboard_backend._ensure_hook()
+    assert keyboard_backend._hook_thread.started is True
+    assert (event.clear_calls, event.wait_calls) == (1, 1)
+    class LiveThread:
+        def is_alive(self): return True
+    monkeypatch.setattr(keyboard_backend, "_hook_thread", LiveThread())
+    keyboard_backend._ensure_hook()
+    assert (event.clear_calls, event.wait_calls) == (1, 1)
+
+def test_keyboard_hook_worker_handles_down_up_blocked_and_kill_switch_events(monkeypatch):
+    user32 = _KeyboardUser32()
+    user32.message_results = [1, 0]
+    fake_event = SimpleNamespace(set = lambda: None)
+    triggered = []
+    monkeypatch.setattr(keyboard_backend, "_user32", user32)
+    monkeypatch.setattr(keyboard_backend, "_HookProcedure", lambda function: function)
+    monkeypatch.setattr(keyboard_backend, "_hook_ready_event", fake_event)
+    monkeypatch.setattr(keyboard_backend, "_hook_id", None)
+    monkeypatch.setattr(keyboard_backend, "_key_states", {})
+    monkeypatch.setattr(keyboard_backend, "_blocked_keys", {8})
+    monkeypatch.setattr(keyboard_backend, "_kill_switch_enabled", False)
+    monkeypatch.setattr(keyboard_backend, "_kill_switch_key", 9)
+    monkeypatch.setattr(keyboard_backend, "_kill_switch_modifiers", [17])
+    monkeypatch.setattr(keyboard_backend, "trigger_kill_switch", lambda: triggered.append(True))
+    keyboard_backend._hook_worker()
+    handler = keyboard_backend._hook_function
+
+    def invoke(hook_code, message, virtual_key, flags = 0):
+        hook = keyboard_backend._KeyboardHookStruct(virtual_key_code = virtual_key, flags = flags)
+        return handler(hook_code, message, ctypes.byref(hook))
+
+    assert invoke(-1, keyboard_backend._WINDOW_MESSAGE_KEY_DOWN, 1) == 71
+    assert invoke(0, keyboard_backend._WINDOW_MESSAGE_KEY_DOWN, 7) == 71
+    assert keyboard_backend._key_states[7] is True
+    assert invoke(0, keyboard_backend._WINDOW_MESSAGE_SYSTEM_KEY_UP, 7) == 71
+    assert keyboard_backend._key_states[7] is False
+    assert invoke(0, keyboard_backend._WINDOW_MESSAGE_KEY_DOWN, 8) == 1
+    assert invoke(0, keyboard_backend._WINDOW_MESSAGE_KEY_DOWN, 8, keyboard_backend._INJECTED) == 71
+    assert invoke(0, keyboard_backend._WINDOW_MESSAGE_KEY_UP, 8) == 1
+    assert invoke(0, 0, 7) == 71
+    monkeypatch.setattr(keyboard_backend, "_kill_switch_enabled", True)
+    keyboard_backend._key_states[17] = True
+    assert invoke(0, keyboard_backend._WINDOW_MESSAGE_SYSTEM_KEY_DOWN, 9) == 1
+    assert triggered == [True]
+    keyboard_backend._key_states[17] = False
+    user32.key_states[17] = 0
+    assert invoke(0, keyboard_backend._WINDOW_MESSAGE_KEY_DOWN, 9) == 71
+    user32.key_states[17] = keyboard_backend._KEY_PRESSED
+    assert invoke(0, keyboard_backend._WINDOW_MESSAGE_KEY_DOWN, 9) == 1
+    assert triggered == [True, True]
+    assert user32.translate_calls == 1
+    assert user32.dispatch_calls == 1
+
+class _Capture:
+    def __init__(self, monitors, screenshot = None):
+        self.monitors = monitors
+        self.screenshot = screenshot if screenshot is not None else object()
+        self.grabs = []
+
+    def __enter__(self): return self
+
+    def __exit__(self, *_): return False
+
+    def grab(self, screen):
+        self.grabs.append(screen)
+        return self.screenshot
+
+def test_screen_backend_reads_pixels_work_areas_and_screenshots(monkeypatch):
+    capture = _Capture([
+        {"left": -10, "top": 20, "width": 100, "height": 50},
+        {"left": 100, "top": 200, "width": 800, "height": 600}
+    ])
+    calls = []
+
+    def set_work_area(_, __, pointer, ___):
+        rectangle = ctypes.cast(pointer, ctypes.POINTER(screen_backend.ctypes.wintypes.RECT)).contents
+        rectangle.left, rectangle.top, rectangle.right, rectangle.bottom = (1, 2, 30, 40)
+
+    user32 = SimpleNamespace(
+        GetDC = lambda window: calls.append(("get_dc", window)) or 88,
+        ReleaseDC = lambda window, context: calls.append(("release_dc", window, context)),
+        SystemParametersInfoW = set_work_area
+    )
+    gdi32 = SimpleNamespace(GetPixel = lambda context, x, y: 0x0032140A)
+    monkeypatch.setattr(screen_backend, "mss", SimpleNamespace(mss = lambda: capture))
+    monkeypatch.setattr(
+        screen_backend.ctypes, "windll", SimpleNamespace(user32 = user32, gdi32 = gdi32)
+    )
+    assert screen_backend._get_screen_resolution() == (800, 600)
+    assert screen_backend._get_pixel_color(0, 20) == (10, 20, 50)
+    with pytest.raises(ValueError): screen_backend._get_pixel_color(-11, 20)
+    with pytest.raises(ValueError): screen_backend._get_pixel_color(0, 70)
+    assert screen_backend._get_work_area() == (1, 2, 30, 40)
+    assert calls == [("get_dc", 0), ("release_dc", 0, 88)]
+    screenshot = screen_backend._take_screenshot(monitor_index = 1)
+    assert screenshot is capture.screenshot
+    assert capture.grabs[-1] == capture.monitors[1]
+    screen_backend._take_screenshot(region = (1.2, 2.8, 10.9, 20.1))
+    assert capture.grabs[-1] == {"left": 1, "top": 2, "width": 9, "height": 17}
+    image_writes = []
+    fake_numpy = SimpleNamespace(array = lambda value: "bgra")
+    fake_cv2 = SimpleNamespace(
+        COLOR_BGRA2BGR = 4,
+        cvtColor = lambda image, conversion: f"bgr:{image}:{conversion}",
+        imwrite = lambda path, image: image_writes.append((path, image))
+    )
+    monkeypatch.setattr(screen_backend, "numpy", fake_numpy)
+    monkeypatch.setattr(screen_backend, "cv2", fake_cv2)
+    assert screen_backend._take_screenshot(save_path = "screen.png") is capture.screenshot
+    assert image_writes == [("screen.png", "bgr:bgra:4")]
+
+def test_screen_backend_adjusts_coordinates_and_locates_image_without_real_files(monkeypatch):
+    capture = _Capture([
+        {"left": 0, "top": 0, "width": 1, "height": 1},
+        {"left": 100, "top": 200, "width": 1, "height": 1}
+    ])
+    monkeypatch.setattr(screen_backend, "mss", SimpleNamespace(mss = lambda: capture))
+    assert screen_backend._adjust_coordinates_for_region(1.9, 2.1, (10, 20, 30, 40)) == (11, 22)
+    assert screen_backend._adjust_coordinates_for_region(1.9, 2.1, None, 1) == (101, 202)
+    assert screen_backend._adjust_coordinates_for_region(1.9, 2.1, None) == (1, 2)
+    template = numpy.zeros((4, 6, 3), dtype = numpy.uint8)
+    result = numpy.array([[0.95, 0.91], [0.99, 0.92]])
+    maximum = {"value": 0.95}
+    fake_cv2 = SimpleNamespace(
+        IMREAD_COLOR = 1,
+        COLOR_BGRA2BGR = 2,
+        TM_CCOEFF_NORMED = 3,
+        imdecode = lambda image, flag: template,
+        cvtColor = lambda image, flag: image,
+        matchTemplate = lambda image, matched_template, algorithm: result,
+        minMaxLoc = lambda matched_result: (0, maximum["value"], (0, 0), (3, 5))
+    )
+    monkeypatch.setattr(screen_backend, "numpy", numpy)
+    monkeypatch.setattr(screen_backend, "cv2", fake_cv2)
+    monkeypatch.setattr(
+        screen_backend, "open", lambda *_: io.BytesIO(b"not a real png"), raising = False
+    )
+    monkeypatch.setattr(screen_backend, "_take_screenshot", lambda *_: object())
+    monkeypatch.setattr(
+        screen_backend,
+        "_adjust_coordinates_for_region",
+        lambda x, y, region, monitor: (int(x), int(y))
+    )
+    assert screen_backend._locate_image("ignored.png", 0.9, 1, None, 0) == (6, 7)
+    maximum["value"] = 0.89
+    assert screen_backend._locate_image("ignored.png", 0.9, 1, None, 0) == (None, None)
+    assert screen_backend._locate_image("ignored.png", 0.9, 2, None, 0) == [(3, 2), (4, 2)]
+    assert screen_backend._locate_image("ignored.png", 0.9, 0, None, 0) == [
+        (3, 2), (4, 2), (3, 3), (4, 3)
+    ]
+    monkeypatch.setattr(screen_backend.cv2, "imdecode", lambda *_: None)
+    with pytest.raises(ValueError, match = "Failed to read image"):
+        screen_backend._locate_image("ignored.png", 0.9, 1, None, 0)
+
+def test_screen_backend_runs_ocr_with_fake_winrt_objects(monkeypatch):
+    screenshot = SimpleNamespace(width = 2, height = 3)
+    copied_buffers = []
+    written_bytes = []
+    result = object()
+
+    class FakeBitmap:
+        def __init__(self, *arguments): self.arguments = arguments
+
+        def copy_from_buffer(self, buffer): copied_buffers.append(buffer)
+
+    class FakeWriter:
+        def write_bytes(self, data): written_bytes.append(data)
+
+        def detach_buffer(self): return "buffer"
+
+    class FakeImage:
+        def tobytes(self): return b"pixels"
+
+    class FakeEngine:
+        async def recognize_async(self, bitmap):
+            assert isinstance(bitmap, FakeBitmap)
+            return result
+
+    engine = FakeEngine()
+    fake_numpy = SimpleNamespace(uint8 = object(), array = lambda *_, **__: FakeImage())
+    monkeypatch.setattr(screen_backend, "numpy", fake_numpy)
+    monkeypatch.setattr(screen_backend, "_take_screenshot", lambda *_: screenshot)
+    monkeypatch.setattr(screen_backend, "SoftwareBitmap", FakeBitmap)
+    monkeypatch.setattr(screen_backend, "BitmapPixelFormat", SimpleNamespace(BGRA8 = "bgra8"))
+    monkeypatch.setattr(
+        screen_backend, "BitmapAlphaMode", SimpleNamespace(PREMULTIPLIED = "premultiplied")
+    )
+    monkeypatch.setattr(screen_backend, "DataWriter", FakeWriter)
+    monkeypatch.setattr(
+        screen_backend,
+        "OcrEngine",
+        SimpleNamespace(try_create_from_user_profile_languages = lambda: engine)
+    )
+    assert screen_backend._run_ocr_on_region((0, 0, 1, 1), 0) is result
+    assert written_bytes == [b"pixels"]
+    assert copied_buffers == ["buffer"]
+    monkeypatch.setattr(
+        screen_backend,
+        "OcrEngine",
+        SimpleNamespace(try_create_from_user_profile_languages = lambda: None)
+    )
+    with pytest.raises(SystemError, match = "OCR engine"): screen_backend._run_ocr_on_region()
+
+class _FakeWinMM:
+    def __init__(self, open_error = False):
+        self.commands = []
+        self.open_error = open_error
+
+    def mci_send_string(self, command, *_):
+        self.commands.append(command)
+        return int(self.open_error and command.startswith("open "))
+
+def test_sound_backend_uses_safe_win32_commands_and_reports_open_errors(monkeypatch):
+    beeps = []
+    system_sounds = []
+    winsound = SimpleNamespace(
+        MB_ICONASTERISK = 1,
+        MB_ICONEXCLAMATION = 2,
+        MB_ICONHAND = 3,
+        MB_ICONQUESTION = 4,
+        MB_OK = 5,
+        Beep = lambda frequency, duration: beeps.append((frequency, duration)),
+        MessageBeep = lambda flag: system_sounds.append(flag)
+    )
+    winmm = _FakeWinMM()
+    winmm.mciSendStringW = winmm.mci_send_string
+    process_calls = []
+    fake_subprocess = SimpleNamespace(
+        CREATE_NO_WINDOW = 73,
+        run = lambda arguments, **kwargs: process_calls.append((arguments, kwargs))
+    )
+    monkeypatch.setattr(sound_backend, "winsound", winsound)
+    monkeypatch.setattr(sound_backend.ctypes, "windll", SimpleNamespace(winmm = winmm))
+    monkeypatch.setattr(sound_backend, "subprocess", fake_subprocess)
+    sound_backend._play_beep_sound(440, 0.125)
+    sound_backend._play_system_sound("WARNING")
+    sound_backend._play_system_sound("not-a-system-sound")
+    sound_backend._play_audio("C:/music/test.wav")
+    sound_backend._speak("Ada's test")
+    assert beeps == [(440, 125)]
+    assert system_sounds == [winsound.MB_ICONEXCLAMATION, winsound.MB_OK]
+    assert winmm.commands == [
+        "close audio",
+        "open \"C:/music/test.wav\" alias audio",
+        "play audio wait",
+        "close audio"
+    ]
+    encoded = process_calls[0][0][-1]
+    decoded = base64.b64decode(encoded).decode("utf-16-le")
+    assert "Speak('Ada''s test')" in decoded
+    assert process_calls[0][1] == {"creationflags": 73}
+    failing_winmm = _FakeWinMM(open_error = True)
+    failing_winmm.mciSendStringW = failing_winmm.mci_send_string
+    monkeypatch.setattr(sound_backend.ctypes, "windll", SimpleNamespace(winmm = failing_winmm))
+    with pytest.raises(RuntimeError, match = "Could not play"):
+        sound_backend._play_audio("C:/music/unreadable.wav")
+    assert failing_winmm.commands == ["close audio", "open \"C:/music/unreadable.wav\" alias audio"]
+
+class _Process:
+    def __init__(self, name = None, error = None):
+        self.name = name
+        self.error = error
+        self.calls = []
+
+    @property
+    def info(self):
+        if self.error is not None: raise self.error
+        return {"name": self.name}
+
+    def kill(self): self.calls.append("kill")
+
+    def terminate(self): self.calls.append("terminate")
+
+class _Window:
+    def __init__(self, title):
+        self.title = title
+        self.calls = []
+
+    def activate(self): self.calls.append(("activate"))
+
+    def resizeTo(self, width, height): self.calls.append(("resize", width, height))
+
+    def moveTo(self, x, y): self.calls.append(("move", x, y))
+
+    def close(self): self.calls.append(("close"))
+
+def test_system_backend_handles_processes_clipboard_windows_and_launches(monkeypatch):
+    class NoSuchProcess(Exception): pass
+
+    class AccessDenied(Exception): pass
+
+    class ZombieProcess(Exception): pass
+
+    processes = []
+    fake_psutil = SimpleNamespace(
+        NoSuchProcess = NoSuchProcess,
+        AccessDenied = AccessDenied,
+        ZombieProcess = ZombieProcess,
+        process_iter = lambda attributes: processes
+    )
+    clipboard = {"text": "initial"}
+    active_window = {"value": _Window("Active")}
+    windows = []
+    fake_windows = SimpleNamespace(
+        getActiveWindow = lambda: active_window["value"], getWindowsWithTitle = lambda title: windows
+    )
+    monkeypatch.setattr(
+        system_backend,
+        "pyperclip",
+        SimpleNamespace(
+            paste = lambda: clipboard["text"], copy = lambda text: clipboard.__setitem__("text", text)
+        )
+    )
+    monkeypatch.setattr(system_backend, "psutil", fake_psutil)
+    monkeypatch.setattr(system_backend, "pygetwindow", fake_windows)
+    assert system_backend._get_clipboard_text() == "initial"
+    system_backend._set_clipboard_text("changed")
+    assert clipboard["text"] == "changed"
+    assert system_backend._get_active_window_title() == "Active"
+    active_window["value"] = None
+    assert system_backend._get_active_window_title() == ""
+    matching = _Process("NOTEPAD.EXE")
+    processes[:] = [_Process(None), _Process("else.exe"), _Process(error = NoSuchProcess()), matching]
+    assert system_backend._is_process_running("notepad.exe") is True
+    processes[:] = [_Process(None), _Process("else.exe"), _Process(error = AccessDenied())]
+    assert system_backend._is_process_running("notepad.exe") is False
+    matching.calls.clear()
+    processes[:] = [_Process(error = ZombieProcess()), matching, _Process("else-after-match.exe")]
+    system_backend._kill_process("notepad.exe", force = True)
+    system_backend._kill_process("notepad.exe", force = False)
+    assert matching.calls == ["kill", "terminate"]
+    wrong, exact = _Window("near miss"), _Window("wanted")
+    windows[:] = [wrong, exact]
+    system_backend._focus_window("wanted")
+    system_backend._resize_window("wanted", 11.8, 12.2)
+    system_backend._move_window("wanted", -3.8, 4.8)
+    system_backend._close_window("wanted")
+    assert exact.calls == [("activate"), ("resize", 11, 12), ("move", -3, 4), ("close")]
+    assert wrong.calls == []
+    windows[:] = [wrong]
+    for operation in (
+        lambda: system_backend._focus_window("wanted"),
+        lambda: system_backend._resize_window("wanted", 1, 2),
+        lambda: system_backend._move_window("wanted", 1, 2),
+        lambda: system_backend._close_window("wanted")
+    ):
+        with pytest.raises(WindowNotFoundError): operation()
+    launches = []
+    started = []
+    current_path = {"which": None, "is_file": True}
+    fake_subprocess = SimpleNamespace(
+        Popen = lambda arguments, **kwargs: launches.append((arguments, kwargs))
+    )
+    monkeypatch.setattr(system_backend, "subprocess", fake_subprocess)
+    monkeypatch.setattr(system_backend.shutil, "which", lambda _: current_path["which"])
+    monkeypatch.setattr(system_backend.os.path, "abspath", lambda path: f"absolute/{path}")
+    monkeypatch.setattr(system_backend.os.path, "isfile", lambda _: current_path["is_file"])
+    monkeypatch.setattr(system_backend.os.path, "dirname", lambda path: f"parent/{path}")
+    monkeypatch.setattr(system_backend.os, "startfile", lambda path: started.append(path))
+    current_path.update(which = "found.EXE", is_file = True)
+    system_backend._open_file("tool")
+    current_path.update(which = None, is_file = True)
+    system_backend._open_file("program.com")
+    system_backend._open_file("script.bat")
+    system_backend._open_file("script.cmd")
+    current_path.update(is_file = False)
+    system_backend._open_file("document.txt")
+    assert launches == [
+        (["found.EXE"], {"cwd": "parent/found.EXE"}),
+        (["absolute/program.com"], {"cwd": "parent/absolute/program.com"}),
+        (["cmd.exe", "/d", "/c", "absolute/script.bat"], {"cwd": "parent/absolute/script.bat"}),
+        (["cmd.exe", "/d", "/c", "absolute/script.cmd"], {"cwd": "parent/absolute/script.cmd"})
+    ]
+    assert started == ["document.txt"]
+
+def test_system_backend_power_operations_delegate_to_the_expected_windows_api(monkeypatch):
+    calls = []
+    user32 = SimpleNamespace(LockWorkStation = lambda: calls.append(("lock",)))
+    powrprof = SimpleNamespace(
+        SetSuspendState = lambda *arguments: calls.append(("sleep", *arguments))
+    )
+    subprocess_calls = []
+    fake_subprocess = SimpleNamespace(
+        CREATE_NO_WINDOW = 91,
+        run = lambda arguments, **kwargs: subprocess_calls.append((arguments, kwargs))
+    )
+    monkeypatch.setattr(
+        system_backend.ctypes, "windll", SimpleNamespace(user32 = user32, powrprof = powrprof)
+    )
+    monkeypatch.setattr(system_backend, "subprocess", fake_subprocess)
+    system_backend._lock_screen()
+    system_backend._sleep()
+    system_backend._sign_out()
+    system_backend._hibernate()
+    system_backend._shutdown(12)
+    system_backend._restart(34)
+    assert calls == [("lock",), ("sleep", False, True, False)]
+    assert subprocess_calls == [
+        (["shutdown", "/l"], {"creationflags": 91}),
+        (["shutdown", "/h"], {"creationflags": 91}),
+        (["shutdown", "/s", "/t", "12"], {"creationflags": 91}),
+        (["shutdown", "/r", "/t", "34"], {"creationflags": 91})
+    ]

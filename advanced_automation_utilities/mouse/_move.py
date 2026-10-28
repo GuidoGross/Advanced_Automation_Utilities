@@ -51,22 +51,19 @@ class _Move(_MouseAction):
         if duration <= 0:
             _set_cursor_position(self.x, self.y)
             return
-        if self.physics.inconsistency <= 0:
-            self._execute_movement_phase(
-                initial_x, initial_y, self.x, self.y, duration, speed
-            )
+        readjust_duration = duration * self.physics.readjustment_duration_ratio
+        if self.physics.inconsistency <= 0 or not (readjust_duration > 1e-6):
+            self._execute_movement_phase(initial_x, initial_y, self.x, self.y, duration, speed)
             return
         speed = distance / duration
         initial_movement_duration = duration * (1 - self.physics.readjustment_duration_ratio)
-        readjust_duration = duration * self.physics.readjustment_duration_ratio
         phase_1_x, phase_1_y, error_x, error_y = self._calculate_overshoot(initial_x, initial_y, speed)
         self._execute_movement_phase(
             initial_x, initial_y, phase_1_x, phase_1_y, initial_movement_duration, speed
         )
-        if readjust_duration > 0:
-            self._execute_readjustment_phases(
-                error_x, error_y, speed, readjust_duration, original_target_x, original_target_y
-            )
+        self._execute_readjustment_phases(
+            error_x, error_y, speed, readjust_duration, original_target_x, original_target_y
+        )
 
     def _calculate_speed_and_duration(self, distance):
         speed = self.physics.speed
@@ -175,6 +172,9 @@ class _Move(_MouseAction):
 
     def _execute_movement_phase(self, initial_x, initial_y, final_x, final_y, duration, speed):
         if duration <= 0: return
+        if duration < 1e-6:
+            _set_cursor_position(final_x, final_y)
+            return
         distance = duration * speed
         steps = int(
             max(duration * self._STEPS_PER_SECOND, distance / self._MAXIMUM_PIXELS_PER_STEP, self._MINIMUM_STEPS)
@@ -200,7 +200,7 @@ class _Move(_MouseAction):
             _set_cursor_position(current_x, current_y)
             step_distance = math.hypot(current_x - previous_x, current_y - previous_y)
             step_duration = duration / steps
-            instant_speed = step_distance / step_duration
+            instant_speed = step_distance / max(step_duration, 1e-15)
             if self.physics.minimum_speed > 0 and instant_speed < self.physics.minimum_speed:
                 step_duration = step_distance / self.physics.minimum_speed
             if self.physics.maximum_speed > 0 and instant_speed > self.physics.maximum_speed:
@@ -245,7 +245,8 @@ class _Move(_MouseAction):
             control_point_1_y = current_y + (segment_target_y - current_y) * 1 / 3 + perpendicular_y * random.uniform(-maximum_curve, maximum_curve)
             control_point_2_x = current_x + (segment_target_x - current_x) * 2 / 3 + perpendicular_x * random.uniform(-maximum_curve, maximum_curve)
             control_point_2_y = current_y + (segment_target_y - current_y) * 2 / 3 + perpendicular_y * random.uniform(-maximum_curve, maximum_curve)
-            for j in range(1, segment_steps + 1):
+            stop_step = segment_steps if i == segments - 1 else segment_steps + 1
+            for j in range(1, stop_step):
                 progress = j / segment_steps
                 points.append(
                     self._bezier_point(
@@ -257,6 +258,7 @@ class _Move(_MouseAction):
                     )
                 )
             current_x, current_y = segment_target_x, segment_target_y
+        points.append((target_x, target_y))
         return points
 
     def _bezier_point(self, point_0, point_1, point_2, point_3, progress):

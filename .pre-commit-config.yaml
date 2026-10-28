@@ -26,7 +26,7 @@ repos:
         entry: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/run_tests.ps1 -HypothesisProfile pre_commit
         language: system
         files: ^(advanced_automation_utilities/|tests/|pyproject\.toml$|\.github/workflows/unit_tests\.yml$|README\.md$|\.pre-commit-config\.yaml$)
-        pass_filenames: false
+        pass_filenames: true
         stages: [pre-commit]
       - id: delete-temporary-folders
         name: Delete temporary folders

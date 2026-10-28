@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -42,7 +44,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
       - name: Run unit tests with 1,000 Hypothesis examples
         shell: pwsh
+        env:
+          BEFORE_SHA: ${{github.event.before}}
         run: |
           $ErrorActionPreference = "Stop"
-          & .\tests\run_tests.ps1 -HypothesisProfile post_commit
+          $changed_files = @()
+          if ($env:GITHUB_EVENT_NAME -eq "push" -and $env:BEFORE_SHA -notmatch "^0+$") {
+            $changed_files = @(git diff --name-only $env:BEFORE_SHA $env:GITHUB_SHA)
+            if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          }
+          & .\tests\run_tests.ps1 -HypothesisProfile post_commit -ChangedFiles $changed_files
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
