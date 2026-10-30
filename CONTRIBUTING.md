@@ -69,7 +69,7 @@ python -m pip install -e ".[dev]"
 ```
 
 > [!IMPORTANT]
-> Both the pre-commit hook and the GitHub Actions workflow automatically select test files based on changed files: changes within a module run that module's tests; Windows backend changes also run `test_windows_backends.py`; shared infrastructure changes run tests for affected modules, and unrecognized or test-configuration changes run the full suite.
+> Both the pre-commit hook and the GitHub Actions workflow automatically select test files based on changed files: changes within a module run that module's tests; Windows backend changes also run `test_windows_backend.py`; shared infrastructure changes run tests for affected modules, and unrecognized or test-configuration changes run the full suite.
 
 > [!NOTE]
 > GitHub Actions also builds the package, installs it on a fresh Windows runner, and verifies that it imports on pushes that modify the package, project metadata, README, or smoke-test workflow.

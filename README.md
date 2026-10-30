@@ -30,8 +30,6 @@
 - `numpy` (v1.21.0 or higher)
 - `opencv-python` (v4.5.5 or higher)
 - `psutil` (v5.8.0 or higher)
-- `PyGetWindow` (v0.0.9 or higher)
-- `pyperclip` (v1.8.2 or higher)
 - `tui_utilities` (v1.9.17 or higher)
 - `winrt-Windows.Foundation` (v3.0 or higher)
 - `winrt-Windows.Foundation.Collections` (v3.0 or higher)

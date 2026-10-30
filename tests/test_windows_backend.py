@@ -462,6 +462,225 @@ def test_sound_backend_uses_safe_win32_commands_and_reports_open_errors(monkeypa
         sound_backend._play_audio("C:/music/unreadable.wav")
     assert failing_winmm.commands == ["close audio", "open \"C:/music/unreadable.wav\" alias audio"]
 
+class _FakeSystemUser32:
+    def __init__(self, kernel32):
+        self.kernel32 = kernel32
+        self.windows = {
+            1: ("near match", True), 2: ("wanted", True), 3: ("wanted", False), 4: ("", True)
+        }
+        self.active_window = 2
+        self.clipboard_handle = 0
+        self.clipboard_open = False
+        self.open_clipboard_results = [True]
+        self.create_window_result = 99
+        self.empty_clipboard_result = True
+        self.set_clipboard_result = True
+        self.enum_windows_result = True
+        self.foreground_result = True
+        self.window_position_result = True
+        self.post_message_result = True
+        self.calls = []
+
+    def CreateWindowExW(self, *arguments):
+        self.calls.append(("create_window", arguments))
+        return self.create_window_result
+
+    def DestroyWindow(self, window_handle):
+        self.calls.append(("destroy_window", window_handle))
+        return True
+
+    def OpenClipboard(self, owner_window):
+        self.calls.append(("open_clipboard", owner_window))
+        result = self.open_clipboard_results.pop(0) if self.open_clipboard_results else True
+        self.clipboard_open = result
+        return result
+
+    def CloseClipboard(self):
+        self.calls.append(("close_clipboard",))
+        self.clipboard_open = False
+        return True
+
+    def EmptyClipboard(self):
+        self.calls.append(("empty_clipboard",))
+        self.clipboard_handle = 0
+        return self.empty_clipboard_result
+
+    def GetClipboardData(self, clipboard_format):
+        self.calls.append(("get_clipboard_data", clipboard_format))
+        return self.clipboard_handle
+
+    def SetClipboardData(self, clipboard_format, memory_handle):
+        self.calls.append(("set_clipboard_data", clipboard_format, memory_handle))
+        if not self.set_clipboard_result: return 0
+        self.clipboard_handle = memory_handle
+        return memory_handle
+
+    def EnumWindows(self, callback, parameter):
+        for window_handle in self.windows:
+            if not callback(window_handle, parameter): return False
+        return self.enum_windows_result
+
+    def GetWindowTextLengthW(self, window_handle):
+        return len(self.windows[window_handle][0])
+
+    def GetWindowTextW(self, window_handle, buffer, buffer_size):
+        buffer.value = self.windows[window_handle][0]
+        return len(buffer.value)
+
+    def IsWindowVisible(self, window_handle): return self.windows[window_handle][1]
+
+    def GetForegroundWindow(self): return self.active_window
+
+    def SetForegroundWindow(self, window_handle):
+        self.calls.append(("focus_window", window_handle))
+        return self.foreground_result
+
+    def SetWindowPos(self, window_handle, insert_after, x, y, width, height, flags):
+        self.calls.append(("set_window_position", window_handle, x, y, width, height, flags))
+        return self.window_position_result
+
+    def PostMessageW(self, window_handle, message, word_parameter, long_parameter):
+        self.calls.append(("post_message", window_handle, message, word_parameter, long_parameter))
+        return self.post_message_result
+
+class _FakeSystemKernel32:
+    def __init__(self):
+        self.memory = {}
+        self.freed_handles = []
+        self.next_handle = 100
+        self.fail_allocation = False
+        self.fail_lock = False
+
+    def GlobalAlloc(self, flags, size):
+        if self.fail_allocation: return 0
+        self.next_handle += 1
+        self.memory[self.next_handle] = ctypes.create_string_buffer(size)
+        return self.next_handle
+
+    def GlobalLock(self, handle):
+        if self.fail_lock or handle not in self.memory: return 0
+        return ctypes.addressof(self.memory[handle])
+
+    def GlobalUnlock(self, handle): return 0
+
+    def GlobalFree(self, handle):
+        self.freed_handles.append(handle)
+        self.memory.pop(handle, None)
+        return 0
+
+    def store_text(self, text):
+        self.next_handle += 1
+        self.memory[self.next_handle] = ctypes.create_unicode_buffer(text)
+        return self.next_handle
+
+def _install_fake_system_apis(monkeypatch):
+    kernel32 = _FakeSystemKernel32()
+    user32 = _FakeSystemUser32(kernel32)
+    monkeypatch.setattr(system_backend, "_kernel32", kernel32)
+    monkeypatch.setattr(system_backend, "_user32", user32)
+    return user32, kernel32
+
+def test_system_backend_retries_opening_a_busy_clipboard(monkeypatch):
+    user32, kernel32 = _install_fake_system_apis(monkeypatch)
+    user32.open_clipboard_results = [False, True]
+    user32.clipboard_handle = kernel32.store_text("available")
+    monkeypatch.setattr(system_backend.time, "sleep", lambda duration: None)
+    assert system_backend._get_clipboard_text() == "available"
+    assert [call[0] for call in user32.calls].count("open_clipboard") == 2
+
+def test_system_backend_returns_empty_text_when_clipboard_has_no_unicode_data(monkeypatch):
+    user32, _ = _install_fake_system_apis(monkeypatch)
+    assert system_backend._get_clipboard_text() == ""
+    assert user32.clipboard_open is False
+
+def test_system_backend_clipboard_read_error_closes_clipboard(monkeypatch):
+    user32, kernel32 = _install_fake_system_apis(monkeypatch)
+    user32.clipboard_handle = kernel32.store_text("unreadable")
+    kernel32.fail_lock = True
+    with pytest.raises(OSError, match = "read text"): system_backend._get_clipboard_text()
+    assert user32.clipboard_open is False
+
+def test_system_backend_reads_and_writes_unicode_clipboard_text(monkeypatch):
+    user32, kernel32 = _install_fake_system_apis(monkeypatch)
+    user32.clipboard_handle = kernel32.store_text("initial 日本語")
+    assert system_backend._get_clipboard_text() == "initial 日本語"
+    assert user32.clipboard_open is False
+    system_backend._set_clipboard_text("changed 😀")
+    assert system_backend._get_clipboard_text() == "changed 😀"
+    system_backend._set_clipboard_text("")
+    assert system_backend._get_clipboard_text() == ""
+    assert user32.clipboard_open is False
+    assert len([call for call in user32.calls if call[0] == "create_window"]) == 2
+    assert len([call for call in user32.calls if call[0] == "destroy_window"]) == 2
+
+@pytest.mark.parametrize(
+    "failure, message",
+    [
+        ("create_window", "owner window"),
+        ("open_clipboard", "open"),
+        ("empty_clipboard", "empty"),
+        ("allocate", "allocate"),
+        ("lock", "lock"),
+        ("set_data", "set text")
+    ]
+)
+def test_system_backend_clipboard_write_errors_release_owned_resources(monkeypatch, failure, message):
+    user32, kernel32 = _install_fake_system_apis(monkeypatch)
+    match failure:
+        case "create_window": user32.create_window_result = 0
+        case "open_clipboard":
+            user32.open_clipboard_results = [False]
+            monkeypatch.setattr(system_backend, "_CLIPBOARD_OPEN_TIMEOUT", 0)
+        case "empty_clipboard": user32.empty_clipboard_result = False
+        case "allocate": kernel32.fail_allocation = True
+        case "lock": kernel32.fail_lock = True
+        case "set_data": user32.set_clipboard_result = False
+    with pytest.raises(OSError, match = message):
+        system_backend._set_clipboard_text("text")
+    assert user32.clipboard_open is False
+    assert len([call for call in user32.calls if call[0] == "destroy_window"]) == (
+        0 if failure == "create_window" else 1
+    )
+    if failure in {"lock", "set_data"}: assert len(kernel32.freed_handles) == 1
+
+def test_system_backend_finds_and_operates_on_exact_visible_window_titles(monkeypatch):
+    user32, _ = _install_fake_system_apis(monkeypatch)
+    assert system_backend._get_active_window_title() == "wanted"
+    user32.active_window = 0
+    assert system_backend._get_active_window_title() == ""
+    system_backend._focus_window("wanted")
+    system_backend._resize_window("wanted", 11.8, 12.2)
+    system_backend._move_window("wanted", -3.8, 4.8)
+    system_backend._close_window("wanted")
+    assert user32.calls == [
+        ("focus_window", 2),
+        ("set_window_position", 2, 0, 0, 11, 12, system_backend._SWP_NOMOVE),
+        ("set_window_position", 2, -3, 4, 0, 0, system_backend._SWP_NOSIZE),
+        ("post_message", 2, system_backend._WM_CLOSE, 0, 0)
+    ]
+
+def test_system_backend_reports_missing_or_unavailable_windows(monkeypatch):
+    user32, _ = _install_fake_system_apis(monkeypatch)
+    with pytest.raises(WindowNotFoundError): system_backend._focus_window("Wanted")
+    user32.enum_windows_result = False
+    with pytest.raises(OSError, match = "enumerate"): system_backend._resize_window("absent", 1, 2)
+
+@pytest.mark.parametrize(
+    "operation, result_attribute, message",
+    [
+        (lambda: system_backend._focus_window("wanted"), "foreground_result", "focus"),
+        (lambda: system_backend._resize_window("wanted", 1, 2), "window_position_result", "resize"),
+        (lambda: system_backend._move_window("wanted", 1, 2), "window_position_result", "move"),
+        (lambda: system_backend._close_window("wanted"), "post_message_result", "close")
+    ]
+)
+def test_system_backend_reports_failed_window_operations(
+    monkeypatch, operation, result_attribute, message
+):
+    user32, _ = _install_fake_system_apis(monkeypatch)
+    setattr(user32, result_attribute, False)
+    with pytest.raises(OSError, match = message): operation()
+
 class _Process:
     def __init__(self, name = None, error = None):
         self.name = name
@@ -477,19 +696,6 @@ class _Process:
 
     def terminate(self): self.calls.append("terminate")
 
-class _Window:
-    def __init__(self, title):
-        self.title = title
-        self.calls = []
-
-    def activate(self): self.calls.append(("activate"))
-
-    def resizeTo(self, width, height): self.calls.append(("resize", width, height))
-
-    def moveTo(self, x, y): self.calls.append(("move", x, y))
-
-    def close(self): self.calls.append(("close"))
-
 def test_system_backend_handles_processes_clipboard_windows_and_launches(monkeypatch):
     class NoSuchProcess(Exception): pass
 
@@ -504,27 +710,7 @@ def test_system_backend_handles_processes_clipboard_windows_and_launches(monkeyp
         ZombieProcess = ZombieProcess,
         process_iter = lambda attributes: processes
     )
-    clipboard = {"text": "initial"}
-    active_window = {"value": _Window("Active")}
-    windows = []
-    fake_windows = SimpleNamespace(
-        getActiveWindow = lambda: active_window["value"], getWindowsWithTitle = lambda title: windows
-    )
-    monkeypatch.setattr(
-        system_backend,
-        "pyperclip",
-        SimpleNamespace(
-            paste = lambda: clipboard["text"], copy = lambda text: clipboard.__setitem__("text", text)
-        )
-    )
     monkeypatch.setattr(system_backend, "psutil", fake_psutil)
-    monkeypatch.setattr(system_backend, "pygetwindow", fake_windows)
-    assert system_backend._get_clipboard_text() == "initial"
-    system_backend._set_clipboard_text("changed")
-    assert clipboard["text"] == "changed"
-    assert system_backend._get_active_window_title() == "Active"
-    active_window["value"] = None
-    assert system_backend._get_active_window_title() == ""
     matching = _Process("NOTEPAD.EXE")
     processes[:] = [_Process(None), _Process("else.exe"), _Process(error = NoSuchProcess()), matching]
     assert system_backend._is_process_running("notepad.exe") is True
@@ -535,22 +721,6 @@ def test_system_backend_handles_processes_clipboard_windows_and_launches(monkeyp
     system_backend._kill_process("notepad.exe", force = True)
     system_backend._kill_process("notepad.exe", force = False)
     assert matching.calls == ["kill", "terminate"]
-    wrong, exact = _Window("near miss"), _Window("wanted")
-    windows[:] = [wrong, exact]
-    system_backend._focus_window("wanted")
-    system_backend._resize_window("wanted", 11.8, 12.2)
-    system_backend._move_window("wanted", -3.8, 4.8)
-    system_backend._close_window("wanted")
-    assert exact.calls == [("activate"), ("resize", 11, 12), ("move", -3, 4), ("close")]
-    assert wrong.calls == []
-    windows[:] = [wrong]
-    for operation in (
-        lambda: system_backend._focus_window("wanted"),
-        lambda: system_backend._resize_window("wanted", 1, 2),
-        lambda: system_backend._move_window("wanted", 1, 2),
-        lambda: system_backend._close_window("wanted")
-    ):
-        with pytest.raises(WindowNotFoundError): operation()
     launches = []
     started = []
     current_path = {"which": None, "is_file": True}

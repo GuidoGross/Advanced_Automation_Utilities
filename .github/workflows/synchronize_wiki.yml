@@ -22,7 +22,6 @@ jobs:
           WIKI_DEPLOY_TOKEN: ${{secrets.WIKI_DEPLOY_TOKEN}}
         run: |
           set -euo pipefail
-
           askpass="$RUNNER_TEMP/git-askpass"
           cat > "$askpass" <<'EOF'
           #!/bin/sh
@@ -35,17 +34,14 @@ jobs:
           chmod 700 "$askpass"
           export GIT_ASKPASS="$askpass"
           export GIT_TERMINAL_PROMPT=0
-
           wiki_path="$RUNNER_TEMP/project-wiki"
           git clone https://github.com/GuidoGross/Advanced_Automation_Utilities.wiki.git "$wiki_path"
           rsync --archive --delete --exclude='.git/' wiki/ "$wiki_path/"
-
           git -C "$wiki_path" add --all
           if git -C "$wiki_path" diff --cached --quiet; then
             echo "The wiki is already up to date."
             exit 0
           fi
-
           git -C "$wiki_path" config user.name "github-actions[bot]"
           git -C "$wiki_path" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C "$wiki_path" commit -m "Wiki synchronized with the project's main repository."

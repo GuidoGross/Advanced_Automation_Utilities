@@ -37,16 +37,16 @@ jobs:
           $ErrorActionPreference = "Stop"
           $wheels = @(Get-ChildItem -Path dist -Filter "*.whl")
           if ($wheels.Count -ne 1) {throw "Expected one wheel, found $($wheels.Count)."}
-
           $is_prerelease = python -c "import sys; print(sys.version_info.releaselevel != 'final')"
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
           if ($is_prerelease -eq "True") {
             python -m pip install --ignore-requires-python $wheels[0].FullName
-          } else {
-            python -m pip install $wheels[0].FullName
-          }
+          } else {python -m pip install $wheels[0].FullName}
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
-
           Set-Location $env:RUNNER_TEMP
-          python -c "import sys; import advanced_automation_utilities; lazy_modules = {'mss', 'numpy', 'cv2', 'winrt', 'pyperclip', 'pygetwindow', 'psutil', 'winsound'}; loaded = lazy_modules.intersection(sys.modules); assert not loaded, f'Unexpected eager imports: {sorted(loaded)}'"
+          python -c "import sys
+          import advanced_automation_utilities
+          lazy_modules = {'mss', 'numpy', 'cv2', 'winrt', 'psutil', 'winsound', 'shutil'}
+          loaded = lazy_modules.intersection(sys.modules)
+          assert not loaded, f'Unexpected eager imports: {sorted(loaded)}'"
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}

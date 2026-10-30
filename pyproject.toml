@@ -1,6 +1,6 @@
 [project]
 name = "advanced_automation_utilities"
-version = "1.3.11"
+version = "1.3.12"
 description = "A powerful, native Python library for Windows automation."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -29,8 +29,6 @@ dependencies = [
     "numpy >= 1.21.0",
     "opencv-python >= 4.5.5",
     "psutil >= 5.8.0",
-    "PyGetWindow >= 0.0.9",
-    "pyperclip >= 1.8.2",
     "tui_utilities >= 1.9.17",
     "winrt-Windows.Foundation >= 3.0",
     "winrt-Windows.Foundation.Collections >= 3.0",
@@ -59,7 +57,10 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/GuidoGross/Advanced_Automation_Utilities"
 Repository = "https://github.com/GuidoGross/Advanced_Automation_Utilities"
+Documentation = "https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki"
 "Bug Tracker" = "https://github.com/GuidoGross/Advanced_Automation_Utilities/issues"
+Discussions = "https://github.com/GuidoGross/Advanced_Automation_Utilities/discussions"
+Sponsor = "https://ko-fi.com/guidoivangross"
 
 [build-system]
 requires = ["setuptools >= 61.0"]

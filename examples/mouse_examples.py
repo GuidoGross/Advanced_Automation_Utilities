@@ -24,8 +24,8 @@ def main():
                 "3": "Right click",
                 "4": "Middle click",
                 "5": "Drag",
-                "7": "Scroll until a condition is met",
-                "9": "Wander until a condition is met",
+                "6": "Scroll until a condition is met",
+                "7": "Wander until a condition is met",
                 "8": "Get pointer coordinates and pixel color",
                 "9": "Check if pointer is inside the screen",
                 "E": "Exit"

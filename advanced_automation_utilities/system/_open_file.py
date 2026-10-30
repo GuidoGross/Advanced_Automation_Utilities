@@ -1,7 +1,7 @@
 from ._system_action import _SystemAction
 from ..backend.windows._system import _open_file
 import os
-import shutil
+lazy import shutil
 
 class _OpenFile(_SystemAction):
     def __init__(self, file_path):

@@ -65,10 +65,10 @@ def test_wait_task():
         header("Wait for task")
         print([
             ("Starting a ", {}),
-            ("5", {"color": "#00bfff"}),
+            ("10", {"color": "#00bfff"}),
             (" second mouse wander...", {})
         ], alignment = "center")
-        with mouse.asynchronous() as mouse_task: mouse.wander(duration = 5)
+        with mouse.asynchronous() as mouse_task: mouse.wander(duration = 10)
         print("\nNow waiting for the task to finish...", alignment = "center")
         mouse_task.wait()
 

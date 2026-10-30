@@ -7,7 +7,7 @@ parent_directory = os.path.dirname(script_directory)
 if parent_directory not in sys.path: sys.path.insert(0, parent_directory)
 
 from examples.examples_utilities import start_stop_script
-from advanced_automation_utilities import Keyboard, KeyboardInfo, KEYBOARD_NORMAL
+from advanced_automation_utilities import Keyboard, KeyboardInfo, KeyboardPhysics, KEYBOARD_NORMAL
 from tui_utilities import (
     set_window_title, maximize_window, menu, confirm_exit, print, header, wait_for_key
 )
@@ -45,7 +45,7 @@ def test_press_key():
 
 def test_hold_and_release_key():
     def hold_key():
-        keyboard_physics = KEYBOARD_NORMAL
+        keyboard_physics = KeyboardPhysics(press_duration = 1)
         keyboard = Keyboard(keyboard_physics)
         keyboard.hold_key("a")
         keyboard.release_key("a")
