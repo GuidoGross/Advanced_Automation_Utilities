@@ -39,7 +39,7 @@ jobs:
             [System.Text.UTF8Encoding]::new($false)
           )
       - name: Upload release check context
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: release-check-context
           path: ${{runner.temp}}/release-check-context/changed-files.txt

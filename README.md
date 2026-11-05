@@ -26,34 +26,34 @@
 
 ### **Dependencies**
 
-- `mss >= 10.2.0`
-- `numpy >= 2.2.0`
-- `opencv-python >= 4.10.0`
-- `psutil >= 6.0.0`
-- `tui_utilities >= 1.9.17`
-- `winrt-Windows.Foundation >= 3.2.0`
-- `winrt-Windows.Foundation.Collections >= 3.2.0`
-- `winrt-Windows.Graphics.Imaging >= 3.2.0`
-- `winrt-Windows.Media.Ocr >= 3.2.0`
-- `winrt-Windows.Storage.Streams >= 3.2.0`
+- `mss` (v10.2.0 or higher)
+- `numpy` (v2.2.0 or higher)
+- `opencv-python` (v4.10.0 or higher)
+- `psutil` (v6.0.0 or higher)
+- `tui_utilities` (v1.9.17 or higher)
+- `winrt-Windows.Foundation` (v3.2.0 or higher)
+- `winrt-Windows.Foundation.Collections` (v3.2.0 or higher)
+- `winrt-Windows.Graphics.Imaging` (v3.2.0 or higher)
+- `winrt-Windows.Media.Ocr` (v3.2.0 or higher)
+- `winrt-Windows.Storage.Streams` (v3.2.0 or higher)
+
+### **Optional dependencies**
+
+- `hypothesis` (v6.47.4 or higher)
+- `pre-commit` (v3.2.0 or higher)
+- `pytest` (v7.2.0 or higher)
+- `pytest-cov` (v6.0.0 or higher)
 
 > [!NOTE]
 > Standard library modules are used where possible; only external dependencies are listed.
 
-### **Optional dependencies**
+### **Setuptools**
 
-- `hypothesis >= 6.47.4`
-- `pre-commit >= 3.2.0`
-- `pytest >= 7.2.0`
-- `pytest-cov >= 6.0.0`
-
-### **Build system**
-
-- `setuptools >= 77.0`
+Setuptools 77.0 or higher
 
 ### **Python version**
 
-Python (v3.15 or higher)
+Python 3.15 or higher
 
 ### **Operating System**
 

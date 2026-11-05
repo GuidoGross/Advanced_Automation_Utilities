@@ -264,7 +264,7 @@ def _sync_readme_requirements(readme, project, configuration):
     requirements = "\n\n".join([
         "## **Requirements**",
         _render_dependency_sections(project, configuration, dependency_note),
-        f"### **Python version**\n\nPython (v{python_version} or higher)",
+        f"### **Python version**\n\nPython {python_version} or higher",
         f"{operating_system_heading}\n\n{operating_system_requirements}"
     ])
     updated_readme = _replace_markdown_section(
@@ -281,37 +281,57 @@ def _extract_dependency_note(readme):
     dependencies_heading = next(
         (index for index, line in enumerate(lines) if line == "### **Dependencies**"), None
     )
-    optional_dependencies_heading = next(
-        (index for index, line in enumerate(lines) if line == "### **Optional dependencies**"), None
+    python_version_heading = next(
+        (index for index, line in enumerate(lines) if line == "### **Python version**"), None
     )
-    if dependencies_heading is None or optional_dependencies_heading is None:
-        return []
+    if dependencies_heading is None or python_version_heading is None: return []
     note_start = next(
         (
-            index for index in range(dependencies_heading + 1, optional_dependencies_heading)
+            index for index in range(dependencies_heading + 1, python_version_heading)
             if lines[index] == "> [!NOTE]"
         ),
         None
     )
     if note_start is None: return []
     note_end = note_start + 1
-    while note_end < optional_dependencies_heading and lines[note_end].startswith(">"): note_end += 1
+    while note_end < python_version_heading and lines[note_end].startswith(">"): note_end += 1
     return lines[note_start:note_end]
+
+def _render_requirement(requirement):
+    requirement_match = re.fullmatch(
+        r"\s*(?P<name>[A-Za-z0-9._-]+)\s*>=\s*(?P<version>[^\s;]+)\s*", requirement
+    )
+    if requirement_match is None: raise ValueError(f"Unsupported requirement format: {requirement}")
+    return f"`{requirement_match.group("name")}` (v{requirement_match.group("version")} or higher)"
 
 def _render_dependency_sections(project, configuration, dependency_note):
     lines = ["### **Dependencies**", ""]
-    lines.extend(f"- `{dependency}`" for dependency in project.get("dependencies", []))
-    if dependency_note: lines.extend(["", *dependency_note])
+    lines.extend(
+        f"- {_render_requirement(dependency)}" for dependency in project.get("dependencies", [])
+    )
     lines.extend(["", "### **Optional dependencies**", ""])
     optional_dependencies = project.get("optional-dependencies", {})
     lines.extend(
-        f"- `{dependency}`"
+        f"- {_render_requirement(dependency)}"
         for dependencies in optional_dependencies.values() for dependency in dependencies
     )
-    lines.extend(["", "### **Build system**", ""])
+    if dependency_note: lines.extend(["", *dependency_note])
     build_requirements = configuration["build-system"].get("requires", [])
-    lines.extend(f"- `{requirement}`" for requirement in build_requirements)
+    if build_requirements:
+        lines.extend(["", "### **Setuptools**", ""])
+        lines.extend(
+            f"Setuptools {_minimum_requirement_version(requirement)}"
+            for requirement in build_requirements
+        )
     return "\n".join(lines)
+
+def _minimum_requirement_version(requirement):
+    requirement_match = re.fullmatch(
+        r"\s*setuptools\s*>=\s*(?P<version>[^\s;]+)\s*", requirement, re.IGNORECASE
+    )
+    if requirement_match is None:
+        raise ValueError(f"Unsupported build requirement format: {requirement}")
+    return f"{requirement_match.group("version")} or higher"
 
 def _minimum_python_version(requires_python):
     version_match = re.fullmatch(r">=\s*(\d+(?:\.\d+)*)", requires_python)

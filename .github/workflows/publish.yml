@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
       - name: Download change context
         if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: release-check-context
           run-id: ${{github.event.workflow_run.id}}
