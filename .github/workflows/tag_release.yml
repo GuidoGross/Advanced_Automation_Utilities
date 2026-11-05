@@ -85,4 +85,26 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$tag_name" "$TARGET_SHA" -m "Release $tag_name"
-          git push origin "$tag_name"
+          for attempt in 1 2 3; do
+            if push_output=$(git push origin "$tag_name" 2>&1); then
+              printf '%s\n' "$push_output"
+              exit 0
+            else
+              push_status=$?
+            fi
+            printf '%s\n' "$push_output"
+            if [[ "$push_output" != *"fatal error in commit_refs_rules"* ]]; then
+              exit "$push_status"
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo "GitHub rejected the tag push with a ref-rules error after 3 attempts." >&2
+              exit "$push_status"
+            fi
+            git fetch --tags origin
+            if git tag --list "$tag_name" | grep -Fxq "$tag_name"; then
+              echo "Tag $tag_name was created despite the push error."
+              exit 0
+            fi
+            echo "GitHub returned a transient ref-rules error; retrying tag push."
+            sleep "$((attempt * 5))"
+          done
