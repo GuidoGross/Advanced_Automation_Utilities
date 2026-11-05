@@ -66,11 +66,20 @@ jobs:
       group: tag-release-${{needs.verify.outputs.version}}
       cancel-in-progress: false
     steps:
+      - name: Verify release token is configured
+        env:
+          RELEASE_TOKEN: ${{secrets.RELEASE_TOKEN}}
+        run: |
+          if [[ -z "$RELEASE_TOKEN" ]]; then
+            echo "::error::Configure the RELEASE_TOKEN secret with a token that can update workflow files."
+            exit 1
+          fi
       - name: Check out repository
         uses: actions/checkout@v7
         with:
           ref: ${{github.event.workflow_run.head_sha || github.sha}}
           fetch-depth: 0
+          token: ${{secrets.RELEASE_TOKEN}}
       - name: Create Git Tag
         env:
           PACKAGE_VERSION: ${{needs.verify.outputs.version}}
