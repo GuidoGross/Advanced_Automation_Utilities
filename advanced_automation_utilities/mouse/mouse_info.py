@@ -5,6 +5,8 @@ from typing import Optional, Union
 
 class MouseInfo:
     """
+    **`MouseInfo`:** Reads pointer coordinates, hovered pixel colors, and screen bounds.
+
     **Description:**
 
     Provides real-time information about the mouse state.
@@ -82,11 +84,11 @@ class MouseInfo:
 
         **Arguments:**
 
-        - **`format` (`str`):** Valid options: "rgb", "hexadecimal". Matching is case-insensitive.
+        - **`format` (`ColorFormat`):** Valid options: "rgb", "hexadecimal". Matching is case-insensitive.
 
         **Returns:**
 
-        **`tuple[int, int, int]` | `str`**
+        **`tuple[int, int, int] | str`**
 
         **Example:**
 
@@ -147,11 +149,7 @@ class MouseInfo:
         **Example:**
 
         ```python
-        is_pointer_on_screen = MouseInfo().on_screen(monitor_index = 0)
+        is_pointer_on_screen = MouseInfo().on_screen(region = [250, 250, 500, 500], monitor_index = 0)
         ```
-
-        ### **Keyboard Utilities (keyboard)**
-
-        **Low-level keyboard interaction and information retrieval:**
         """
         return ScreenInfo().on_screen(self.x, self.y, region = region, monitor_index = monitor_index)

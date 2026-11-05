@@ -203,7 +203,7 @@ Returns the color of the pixel at the specified coordinates on RGB or hexadecima
 
 - **`x` (`int`)**
 - **`y` (`int`)**
-- **`format` (`str`):** Valid options: "rgb", "hexadecimal". Matching is case-insensitive.
+- **`format` (`ColorFormat`):** Valid options: "rgb", "hexadecimal". Matching is case-insensitive.
 
 **Returns:**
 
@@ -239,7 +239,9 @@ Compares the color of the pixel at the specified coordinates with the expected c
 **Example:**
 
 ```python
-matches = ScreenInfo().pixel_matches_color(x = 250, y = 500, expected_color = "#FFFFFF", tolerance = 1)
+matches = ScreenInfo().pixel_matches_color(
+    x = 250, y = 500, expected_color = "#FFFFFF", tolerance = 1
+)
 ```
 
 ---

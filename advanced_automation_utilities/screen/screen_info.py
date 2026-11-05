@@ -6,6 +6,8 @@ lazy import mss
 
 class ScreenInfo:
     """
+    **`ScreenInfo`:** Reads screen dimensions, work area, and pixel colors.
+
     **Description:**
 
     Provides real-time information about the screen properties and state.
@@ -87,7 +89,7 @@ class ScreenInfo:
 
         - **`x` (`int`)**
         - **`y` (`int`)**
-        - **`format` (`str`):** Valid options: "rgb", "hexadecimal". Matching is case-insensitive.
+        - **`format` (`ColorFormat`):** Valid options: "rgb", "hexadecimal". Matching is case-insensitive.
 
         **Returns:**
 
@@ -98,10 +100,6 @@ class ScreenInfo:
         ```python
         pixel_color = ScreenInfo().pixel_color(x = 250, y = 500, format = "hexadecimal")
         ```
-
-        ### **Timing Utilities (timing)**
-
-        **Delays, chronometers, and condition-based execution flow:**
         """
         _validate_options(format.lower(), ["rgb", "hexadecimal"], "color format")
         rgb_color = _get_pixel_color(x, y)
@@ -178,10 +176,9 @@ class ScreenInfo:
         is_visible = ScreenInfo().on_screen(x = 250, y = 500, monitor_index = 0)
         ```
         """
-        if region is not None:
-            _validate_region(region)
+        if region is not None: _validate_region(region)
         _validate_between_range(monitor_index = monitor_index)
-        with mss.mss() as screen_capture_tool:
+        with mss.MSS() as screen_capture_tool:
             monitor = screen_capture_tool.monitors[monitor_index]
             if region is not None:
                 left = monitor["left"] + region[0]

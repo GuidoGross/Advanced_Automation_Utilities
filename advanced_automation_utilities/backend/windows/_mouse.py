@@ -1,4 +1,10 @@
+import os
+
+if os.name != "nt":
+    raise NotImplementedError("Advanced Automation Utilities is currently only supported on Windows.")
+
 import ctypes
+from ctypes import wintypes
 
 _LEFT_BUTTON_DOWN = 0x0002
 _LEFT_BUTTON_UP = 0x0004
@@ -9,40 +15,74 @@ _MIDDLE_BUTTON_UP = 0x0040
 _WHEEL = 0x0800
 _HORIZONTAL_WHEEL = 0x1000
 
-class _Point(ctypes.Structure): _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+_user32 = ctypes.WinDLL("user32", use_last_error = True)
 
-def _mouse_down(button):
-    match button:
-        case "left": ctypes.windll.user32.mouse_event(_LEFT_BUTTON_DOWN, 0, 0, 0, 0)
-        case "right": ctypes.windll.user32.mouse_event(_RIGHT_BUTTON_DOWN, 0, 0, 0, 0)
-        case "middle": ctypes.windll.user32.mouse_event(_MIDDLE_BUTTON_DOWN, 0, 0, 0, 0)
+class _Point(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
 
-def _mouse_up(button):
-    match button:
-        case "left": ctypes.windll.user32.mouse_event(_LEFT_BUTTON_UP, 0, 0, 0, 0)
-        case "right": ctypes.windll.user32.mouse_event(_RIGHT_BUTTON_UP, 0, 0, 0, 0)
-        case "middle": ctypes.windll.user32.mouse_event(_MIDDLE_BUTTON_UP, 0, 0, 0, 0)
+class _MouseInput(ctypes.Structure):
+    _fields_ = (
+        ("delta_x", wintypes.LONG),
+        ("delta_y", wintypes.LONG),
+        ("mouse_data", wintypes.DWORD),
+        ("flags", wintypes.DWORD),
+        ("time", wintypes.DWORD),
+        ("extra_information", ctypes.POINTER(ctypes.c_ulong))
+    )
+
+class _Input(ctypes.Structure):
+    class _InputUnion(ctypes.Union):
+        _fields_ = (("mouse_input", _MouseInput),)
+    _anonymous_ = ("_input_union",)
+    _fields_ = (("type", wintypes.DWORD), ("_input_union", _InputUnion))
 
 def _get_cursor_position():
     point = _Point()
-    ctypes.windll.user32.GetCursorPos(ctypes.byref(point))
+    _user32.GetCursorPos(ctypes.byref(point))
     return point.x, point.y
 
-def _set_cursor_position(x, y): ctypes.windll.user32.SetCursorPos(int(x), int(y))
+def _set_cursor_position(x, y):
+    _user32.SetCursorPos(int(x), int(y))
+
+def _send_mouse_input(flags, mouse_data = 0):
+    input_item = _Input(
+        type = 0,
+        mouse_input = _MouseInput(
+            delta_x = 0,
+            delta_y = 0,
+            mouse_data = mouse_data,
+            flags = flags,
+            time = 0,
+            extra_information = None
+        )
+    )
+    _user32.SendInput(1, ctypes.byref(input_item), ctypes.sizeof(_Input))
+
+_MOUSE_DOWN_FLAGS = {
+    "left": _LEFT_BUTTON_DOWN,
+    "right": _RIGHT_BUTTON_DOWN,
+    "middle": _MIDDLE_BUTTON_DOWN,
+}
+
+_MOUSE_UP_FLAGS = {
+    "left": _LEFT_BUTTON_UP,
+    "right": _RIGHT_BUTTON_UP,
+    "middle": _MIDDLE_BUTTON_UP,
+}
+
+_SCROLL_FLAGS = {
+    "up": (_WHEEL, 1),
+    "down": (_WHEEL, -1),
+    "right": (_HORIZONTAL_WHEEL, 1),
+    "left": (_HORIZONTAL_WHEEL, -1),
+}
+
+def _mouse_down(button):
+    _send_mouse_input(_MOUSE_DOWN_FLAGS[button])
+
+def _mouse_up(button):
+    _send_mouse_input(_MOUSE_UP_FLAGS[button])
 
 def _scroll(amount, direction):
-    match direction:
-        case "up":
-            sign = 1
-            flag = _WHEEL
-        case "down":
-            sign = -1
-            flag = _WHEEL
-        case "right":
-            sign = 1
-            flag = _HORIZONTAL_WHEEL
-        case "left":
-            sign = -1
-            flag = _HORIZONTAL_WHEEL
-        case _: return
-    ctypes.windll.user32.mouse_event(flag, 0, 0, int(amount) * sign, 0)
+    flag, sign = _SCROLL_FLAGS[direction]
+    _send_mouse_input(flag, mouse_data = int(amount) * sign)

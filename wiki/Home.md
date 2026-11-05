@@ -26,19 +26,31 @@
 
 ### **Dependencies**
 
+- `mss >= 10.2.0`
+- `numpy >= 2.2.0`
+- `opencv-python >= 4.10.0`
+- `psutil >= 6.0.0`
+- `tui_utilities >= 1.9.17`
+- `winrt-Windows.Foundation >= 3.2.0`
+- `winrt-Windows.Foundation.Collections >= 3.2.0`
+- `winrt-Windows.Graphics.Imaging >= 3.2.0`
+- `winrt-Windows.Media.Ocr >= 3.2.0`
+- `winrt-Windows.Storage.Streams >= 3.2.0`
+
 > [!NOTE]
 > Standard library modules are used where possible; only external dependencies are listed.
 
-- `mss` (v6.1.0 or higher)
-- `numpy` (v1.21.0 or higher)
-- `opencv-python` (v4.5.5 or higher)
-- `psutil` (v5.8.0 or higher)
-- `tui_utilities` (v1.9.17 or higher)
-- `winrt-Windows.Foundation` (v3.0 or higher)
-- `winrt-Windows.Foundation.Collections` (v3.0 or higher)
-- `winrt-Windows.Graphics.Imaging` (v3.0 or higher)
-- `winrt-Windows.Media.Ocr` (v3.0 or higher)
-- `winrt-Windows.Storage.Streams` (v3.0 or higher)
+### **Optional dependencies**
+
+- **`dev`:**
+  - `hypothesis >= 6.47.4`
+  - `pre-commit >= 3.2.0`
+  - `pytest >= 7.2.0`
+  - `pytest-cov >= 6.0.0`
+
+### **Build system**
+
+- `setuptools >= 77.0`
 
 ### **Python version**
 
@@ -78,12 +90,12 @@ Windows 10 or higher.
 
 **Choose a section to explore:**
 
-- **[Mouse](Mouse)**: Clicks, movement, scrolling and physics.
-- **[Keyboard](Keyboard)**: Typing, hotkeys, blocking, and modifiers.
+- **[Mouse](Mouse)**: movement, clicks, scrolling and physics.
+- **[Keyboard](Keyboard)**: typing, hotkeys, blocking and physics.
 - **[Screen](Screen)**: OCR text reading, image location, and pixel colors.
-- **[Timing](Timing)**: Smart waits, random delays, and performance measuring.
-- **[Sound](Sound)**: System sounds, TTS (Text-to-Speech), and audio files.
-- **[System](System)**: Process management, window manipulation, and kill-switch.
-- **[Asynchrony](Asynchrony)**: Non-blocking parallel executions.
-- **[Physics](Physics)**: Human-like mouse and keyboard behaviors.
-- **[Exceptions](Exceptions)**: Library-specific errors.
+- **[Timing](Timing)**: smart delays, random delays, and performance measuring.
+- **[Sound](Sound)**: system sounds, TTS and audio files.
+- **[System](System)**: process management, window management and kill-switch.
+- **[Asynchrony](Asynchrony)**: non-blocking parallel executions.
+- **[Physics](Physics)**: human-like mouse and keyboard behaviors.
+- **[Exceptions](Exceptions)**: library-specific errors.

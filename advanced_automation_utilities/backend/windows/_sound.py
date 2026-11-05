@@ -1,9 +1,17 @@
+import os
+
+if os.name != "nt":
+    raise NotImplementedError("Advanced Automation Utilities is currently only supported on Windows.")
+
 import ctypes
 lazy import winsound
 lazy import base64
 lazy import subprocess
 
-def _play_beep_sound(frequency, duration): winsound.Beep(frequency, int(duration * 1000))
+_winmm = ctypes.WinDLL("winmm", use_last_error = True)
+
+def _play_beep_sound(frequency, duration):
+    winsound.Beep(frequency, int(duration * 1000))
 
 def _play_system_sound(sound_name):
     sounds = {
@@ -18,12 +26,13 @@ def _play_system_sound(sound_name):
 
 def _play_audio(audio_path):
     alias = "audio"
-    ctypes.windll.winmm.mciSendStringW(f"close {alias}", None, 0, None)
-    error = ctypes.windll.winmm.mciSendStringW(f"open \"{audio_path}\" alias {alias}", None, 0, None)
-    if error: raise RuntimeError("Could not play the audio file.")
+    _winmm.mciSendStringW(f"close {alias}", None, 0, None)
+    error = _winmm.mciSendStringW(f"open \"{audio_path}\" alias {alias}", None, 0, None)
+    if error:
+        raise RuntimeError("Could not play the audio file.")
     command = f"play {alias} wait"
-    ctypes.windll.winmm.mciSendStringW(command, None, 0, None)
-    ctypes.windll.winmm.mciSendStringW(f"close {alias}", None, 0, None)
+    _winmm.mciSendStringW(command, None, 0, None)
+    _winmm.mciSendStringW(f"close {alias}", None, 0, None)
 
 def _speak(text):
     safe_text = text.replace("'", "''")

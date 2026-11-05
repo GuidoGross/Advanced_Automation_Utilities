@@ -1,41 +1,61 @@
+import os
+
+if os.name != "nt":
+    raise NotImplementedError("Advanced Automation Utilities is currently only supported on Windows.")
+
 from ..._utilities import _validate_between_range
 import ctypes
 import ctypes.wintypes
-lazy import asyncio
-lazy import mss
-lazy import numpy
-lazy import cv2
 lazy from winrt.windows.graphics.imaging import SoftwareBitmap, BitmapPixelFormat, BitmapAlphaMode
 lazy from winrt.windows.storage.streams import DataWriter
 lazy from winrt.windows.media.ocr import OcrEngine
+lazy import mss
+lazy import numpy
+lazy import cv2
+lazy import asyncio
 
 _SPI_GETWORKAREA = 48
 
+_user32 = ctypes.WinDLL("user32", use_last_error = True)
+_gdi32 = ctypes.WinDLL("gdi32", use_last_error = True)
+_dpi_initialized = False
+
+def _ensure_dpi_aware():
+    global _dpi_initialized
+    if not _dpi_initialized:
+        try: _user32.SetProcessDPIAware()
+        except Exception: pass
+        _dpi_initialized = True
+
 def _get_screen_resolution():
-    with mss.mss() as screen_capture_tool:
+    _ensure_dpi_aware()
+    with mss.MSS() as screen_capture_tool:
         monitor = screen_capture_tool.monitors[1]
         return monitor["width"], monitor["height"]
 
 def _get_pixel_color(x, y):
-    with mss.mss() as screen_capture_tool:
+    _ensure_dpi_aware()
+    with mss.MSS() as screen_capture_tool:
         virtual = screen_capture_tool.monitors[0]
         _validate_between_range(virtual["left"], virtual["left"] + virtual["width"] - 1, x = x)
         _validate_between_range(virtual["top"], virtual["top"] + virtual["height"] - 1, y = y)
-    device_context = ctypes.windll.user32.GetDC(0)
-    color = ctypes.windll.gdi32.GetPixel(device_context, x, y)
-    ctypes.windll.user32.ReleaseDC(0, device_context)
+    device_context = _user32.GetDC(0)
+    color = _gdi32.GetPixel(device_context, x, y)
+    _user32.ReleaseDC(0, device_context)
     r = color & 0xFF
     g = (color >> 8) & 0xFF
     b = (color >> 16) & 0xFF
     return (r, g, b)
 
 def _get_work_area():
+    _ensure_dpi_aware()
     rectangle = ctypes.wintypes.RECT()
-    ctypes.windll.user32.SystemParametersInfoW(_SPI_GETWORKAREA, 0, ctypes.byref(rectangle), 0)
+    _user32.SystemParametersInfoW(_SPI_GETWORKAREA, 0, ctypes.byref(rectangle), 0)
     return rectangle.left, rectangle.top, rectangle.right, rectangle.bottom
 
 def _take_screenshot(region = None, monitor_index = 0, save_path = None):
-    with mss.mss() as screen_capture_tool:
+    _ensure_dpi_aware()
+    with mss.MSS() as screen_capture_tool:
         if region is None: screen = screen_capture_tool.monitors[monitor_index]
         else:
             left, top, right, bottom = region
@@ -57,15 +77,14 @@ def _adjust_coordinates_for_region(x, y, region, monitor_index = 0):
         x += region[0]
         y += region[1]
     elif monitor_index != 0:
-        with mss.mss() as screen_capture_tool:
+        with mss.MSS() as screen_capture_tool:
             monitor = screen_capture_tool.monitors[monitor_index]
             x += monitor["left"]
             y += monitor["top"]
     return int(x), int(y)
 
 def _locate_image(image_path, confidence, limit, region, monitor_index):
-    with open(image_path, "rb") as file:
-        image_array = numpy.frombuffer(file.read(), numpy.uint8)
+    with open(image_path, "rb") as file: image_array = numpy.frombuffer(file.read(), numpy.uint8)
     template = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
     if template is None:
         raise ValueError(
@@ -112,6 +131,7 @@ def _run_ocr_on_region(region = None, monitor_index = 0):
             "Windows OCR engine could not be initialized. Please check your language settings."
         )
 
-    async def recognize(): return await engine.recognize_async(software_bitmap)
+    async def recognize():
+        return await engine.recognize_async(software_bitmap)
 
     return asyncio.run(recognize())

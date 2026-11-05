@@ -49,23 +49,23 @@ python -m pip install -e ".[dev]"
 - **`development`:**
 
     ```powershell
-    .\tests\run_tests.ps1
+    python .\scripts\run_tests.py
     ```
 - **`pre_commit`:**
 
     ```powershell
-    .\tests\run_tests.ps1 -HypothesisProfile pre_commit
+    python .\scripts\run_tests.py --hypothesis-profile pre_commit
     ```
 - **`post_commit`:**
 
     ```powershell
-    .\tests\run_tests.ps1 -HypothesisProfile post_commit
+    python .\scripts\run_tests.py --hypothesis-profile post_commit
     ```
 
 **To run the full test suite with line and branch coverage:**
 
 ```powershell
-.\tests\run_coverage_analysis.ps1
+python .\scripts\run_coverage_analysis.py
 ```
 
 > [!IMPORTANT]

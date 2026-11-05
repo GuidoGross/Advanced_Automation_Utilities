@@ -53,21 +53,31 @@ def test_screen_info_simple_properties(monkeypatch):
     assert screen_info.height == 1080
     assert screen_info.work_area == (0, 0, 1920, 1040)
 
+def test_screen_info_returns_positive_resolution():
+    width, height = ScreenInfo().resolution
+    assert width > 0 and height > 0
+
+def test_screen_info_returns_valid_work_area_bounds():
+    left, top, right, bottom = ScreenInfo().work_area
+    assert right > left and bottom > top
+
 def test_screen_info_pixel_and_on_screen_methods(monkeypatch):
     class FakeMssCapture:
+        def __enter__(self): return self
+
+        def __exit__(self, *args): return False
+
         monitors = [
             {"left": 0, "top": 0, "width": 50, "height": 50},
             {"left": 100, "top": 200, "width": 50, "height": 50}
         ]
 
-        def __enter__(self): return self
-
-        def __exit__(self, *args): return False
-
     monkeypatch.setattr(
         screen_info_module, "_get_pixel_color", lambda x_coordinate, y_coordinate: (10, 20, 30)
     )
-    monkeypatch.setattr(screen_info_module, "mss", SimpleNamespace(mss = FakeMssCapture))
+    monkeypatch.setattr(
+        screen_info_module, "mss", SimpleNamespace(MSS = FakeMssCapture)
+    )
     info = screen_info_module.ScreenInfo()
     assert info.pixel_color(1, 2, "hexadecimal") == "#0a141e"
     assert info.pixel_matches_color(1, 2, "#0a141e") is True
@@ -106,7 +116,7 @@ def test_pixel_matches_color_always_matches_itself(actual_color, tolerance, monk
     screen_info = ScreenInfo()
     assert screen_info.pixel_matches_color(0, 0, actual_color, tolerance = tolerance) is True
 
-@given(actual_color = strategies.tuples(*(strategies.integers(0, 55),) * 3))
+@given(actual_color = strategies.tuples(*(strategies.integers(0, 255),) * 3))
 def test_pixel_matches_color_rejects_a_far_color_at_strict_tolerance(actual_color, monkeypatch):
     monkeypatch.setattr(
         screen_info_module, "_get_pixel_color", lambda x_coordinate, y_coordinate: actual_color
@@ -117,16 +127,16 @@ def test_pixel_matches_color_rejects_a_far_color_at_strict_tolerance(actual_colo
 
 def test_multi_monitor_coordinates_account_for_monitor_offset(monkeypatch):
     class FakeMssContext:
+        def __enter__(self): return self
+
+        def __exit__(self, *args): pass
+
         monitors = {
             0: {"left": -1920, "top": 0, "width": 3840, "height": 1080},
             1: {"left": -1920, "top": 0, "width": 1920, "height": 1080}
         }
 
-        def __enter__(self): return self
-
-        def __exit__(self, *args): pass
-
-    monkeypatch.setattr(screen_backend_module.mss, "mss", lambda: FakeMssContext())
+    monkeypatch.setattr(screen_backend_module.mss, "MSS", lambda: FakeMssContext())
     adjusted_x, adjusted_y = _adjust_coordinates_for_region(100, 50, region = None, monitor_index = 1)
     assert (adjusted_x, adjusted_y) == (100 - 1920, 50)
 

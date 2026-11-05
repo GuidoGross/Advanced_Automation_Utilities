@@ -109,6 +109,14 @@ def test_clipboard_round_trips_whatever_text_is_set(text, fake_system):
     system.set_clipboard_text(text)
     assert fake_system.clipboard == text
 
+def test_clipboard_round_trips_text_with_system_clipboard():
+    original_clipboard = _system_backend._get_clipboard_text()
+    test_text = "Clipboard round-trip test"
+    try:
+        _system_backend._set_clipboard_text(test_text)
+        assert _system_backend._get_clipboard_text() == test_text
+    finally: _system_backend._set_clipboard_text(original_clipboard)
+
 def test_open_file_accepts_a_name_resolvable_via_path(): _OpenFile("python")
 
 @pytest.mark.parametrize("extension", [".exe", ".com", ".bat", ".cmd"])

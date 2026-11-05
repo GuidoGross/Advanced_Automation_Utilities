@@ -5,10 +5,11 @@ import math
 @dataclass(frozen = True)
 class MousePhysics:
     """
+    **`MousePhysics`:** Configures movement, clicking, scrolling, and wandering behavior.
+
     **Description:**
 
-    Configuration class that defines the timing and movement characteristics
-    for mouse actions, allowing for human-like or instantaneous execution.
+    Configuration class that defines the timing and movement characteristics for mouse actions, allowing for human-like or instantaneous execution.
 
     **Arguments:**
 

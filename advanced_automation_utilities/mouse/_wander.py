@@ -78,7 +78,8 @@ class _Wander(_MouseAction):
             _Move(target_x, target_y, physics = self.physics).execute()
             steps_taken += 1
             if stop_event is not None:
-                if stop_event.wait(delay): break
+                if stop_event.wait(delay):
+                    break
             else: timing.wait(delay)
 
     def _get_next_target(self, distance):

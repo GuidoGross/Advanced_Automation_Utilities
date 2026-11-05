@@ -45,7 +45,7 @@ Plays a default Windows system sound between the given options.
 
 **Arguments:**
 
-- **`sound_type` (`str`):** Valid options: "info", "warning", "error", "question", "ok". Matching is case-insensitive.
+- **`sound_type` (`SystemSound`):** Valid options: "info", "warning", "error", "question", "ok". Matching is case-insensitive.
 
 **Returns:**
 

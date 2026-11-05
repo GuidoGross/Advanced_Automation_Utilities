@@ -11,6 +11,8 @@ from typing import Optional, Self
 
 class Keyboard(_QueueableController):
     """
+    **`Keyboard`:** Controls keyboard input, typing, hotkeys, and physical key blocking.
+
     **Description:**
 
     Low-level keyboard interaction and hardware state retrieval. Simulates human typing with configurable physics, handles complex hotkey combinations, and can selectively block physical hardware inputs to prevent interference during critical automation tasks.

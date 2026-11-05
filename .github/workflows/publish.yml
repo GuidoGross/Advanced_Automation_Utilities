@@ -1,60 +1,163 @@
 name: Publish
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - pyproject.toml
+  workflow_run:
+    workflows: ["Unit tests", "Smoke test"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
 jobs:
-  publish:
+  verify:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-24.04
+    outputs:
+      passed: ${{steps.checks.outputs.passed}}
+      version: ${{steps.version.outputs.version}}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
+          ref: ${{github.event.workflow_run.head_sha || github.sha}}
           fetch-depth: 0
+      - name: Download change context
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: release-check-context
+          run-id: ${{github.event.workflow_run.id}}
+          github-token: ${{github.token}}
+          path: ${{runner.temp}}/release-check-context
+      - name: Prepare manual check context
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-check-context"
+          printf '*\n' > "$RUNNER_TEMP/release-check-context/changed-files.txt"
+      - name: Verify smoke test and unit tests
+        id: checks
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const targetSha = context.eventName === "workflow_run"
+              ? context.payload.workflow_run.head_sha
+              : context.sha;
+            const changedFiles = fs.readFileSync(
+              path.join(process.env.RUNNER_TEMP, "release-check-context", "changed-files.txt"),
+              "utf8"
+            ).replace(/^\uFEFF/, "").split(/\r?\n/).filter(Boolean);
+            const workflows = [
+              {
+                id: "smoke_test.yml",
+                matches: file => file === "*" || file.startsWith("advanced_automation_utilities/")
+                  || ["pyproject.toml", "README.md", ".github/workflows/smoke_test.yml"].includes(file)
+              },
+              {
+                id: "unit_tests.yml",
+                matches: file => file === "*" || file.startsWith("advanced_automation_utilities/")
+                  || file.startsWith("tests/") || file.startsWith("scripts/")
+                  || [
+                    "pyproject.toml", ".pre-commit-config.yaml", "README.md",
+                    ".github/workflows/unit_tests.yml"
+                  ].includes(file)
+              }
+            ].filter(workflow => changedFiles.some(workflow.matches));
+            const deadline = Date.now() + 30 * 60 * 1000;
+            if (workflows.length === 0) {
+              core.info("Neither smoke test nor unit tests applies to these changes.");
+              core.setOutput("passed", "true");
+              return;
+            }
+            while (Date.now() < deadline) {
+              let allSucceeded = true;
+              for (const workflowId of workflows) {
+                const {data} = await github.rest.actions.listWorkflowRuns({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  workflow_id: workflowId.id,
+                  head_sha: targetSha,
+                  branch: "main",
+                  per_page: 100
+                });
+                const matchingRuns = data.workflow_runs
+                  .filter(run => run.head_sha === targetSha && ["push", "workflow_dispatch"].includes(run.event))
+                  .sort((left, right) => right.run_number - left.run_number);
+                if (matchingRuns.length === 0 || matchingRuns[0].status !== "completed") {
+                  allSucceeded = false;
+                  continue;
+                }
+                if (matchingRuns[0].conclusion !== "success") {
+                  core.info(`${workflowId.id} concluded with ${matchingRuns[0].conclusion}.`);
+                  core.setOutput("passed", "false");
+                  return;
+                }
+              }
+              if (allSucceeded) {
+                core.setOutput("passed", "true");
+                return;
+              }
+              await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+            throw new Error(`Timed out waiting for required checks on ${targetSha}.`);
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - name: Detect a package version change
+      - name: Read package version
         id: version
-        env:
-          BEFORE_SHA: ${{github.event.before}}
+        if: steps.checks.outputs.passed == 'true'
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git show "$BEFORE_SHA:pyproject.toml" > "$RUNNER_TEMP/pyproject-before.toml"
-          python - "$RUNNER_TEMP/pyproject-before.toml" pyproject.toml <<'PY'
-
-          import os
-          import sys
+          python - <<'PY'
           import tomllib
+          import os
 
-          def read_version(path):
-              with open(path, "rb") as file:
-                  return tomllib.load(file)["project"]["version"]
+          with open("pyproject.toml", "rb") as file: version = tomllib.load(file)["project"]["version"]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding = "utf-8") as output:
+              output.write(f"version={version}\n")
+          PY
+  publish:
+    needs: verify
+    if: needs.verify.outputs.passed == 'true'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: publish-${{needs.verify.outputs.version}}
+      cancel-in-progress: false
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{github.event.workflow_run.head_sha || github.sha}}
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Check whether this version is already published
+        id: version
+        run: |
+          python - <<'PY'
+          from urllib.request import urlopen
+          from urllib.error import HTTPError
+          import tomllib
+          import os
 
-          old_version = read_version(sys.argv[1])
-          new_version = read_version(sys.argv[2])
-          changed = old_version != new_version
-          print(f"Package version: {old_version} -> {new_version}")
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"changed={str(changed).lower()}\n")
+          with open("pyproject.toml", "rb") as file: project = tomllib.load(file)["project"]
+          package_name = project["name"].replace("-", "_")
+          version = project["version"]
+          url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+          try:
+              with urlopen(url, timeout = 15): already_published = True
+          except HTTPError as error:
+              if error.code != 404: raise
+              already_published = False
+          print(f"Package version {version} already published: {already_published}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding = "utf-8") as output:
+              output.write(f"changed={str(not already_published).lower()}\n")
           PY
       - name: Build distributions
         if: steps.version.outputs.changed == 'true'

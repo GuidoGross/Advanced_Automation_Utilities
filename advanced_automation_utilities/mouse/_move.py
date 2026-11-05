@@ -2,6 +2,8 @@ from ._mouse_action import _MouseAction
 from .mouse_info import MouseInfo
 from .._utilities import _apply_variation
 from ..backend.windows._mouse import _set_cursor_position
+from ..timing import Timing
+from .._kill_switch_event import KILL_SWITCH_EVENT
 import math
 import random
 import time
@@ -40,7 +42,7 @@ class _Move(_MouseAction):
         self.x = x
         self.y = y
 
-    def execute(self):
+    def execute(self, stop_event = None):
         original_target_x, original_target_y = self.x, self.y
         initial_x, initial_y = MouseInfo().coordinates
         if math.hypot(original_target_x - initial_x, original_target_y - initial_y) <= self.physics.target_radius:
@@ -53,16 +55,18 @@ class _Move(_MouseAction):
             return
         readjust_duration = duration * self.physics.readjustment_duration_ratio
         if self.physics.inconsistency <= 0 or not (readjust_duration > 1e-6):
-            self._execute_movement_phase(initial_x, initial_y, self.x, self.y, duration, speed)
+            self._execute_movement_phase(
+                initial_x, initial_y, self.x, self.y, duration, speed, stop_event
+            )
             return
         speed = distance / duration
         initial_movement_duration = duration * (1 - self.physics.readjustment_duration_ratio)
         phase_1_x, phase_1_y, error_x, error_y = self._calculate_overshoot(initial_x, initial_y, speed)
         self._execute_movement_phase(
-            initial_x, initial_y, phase_1_x, phase_1_y, initial_movement_duration, speed
+            initial_x, initial_y, phase_1_x, phase_1_y, initial_movement_duration, speed, stop_event
         )
         self._execute_readjustment_phases(
-            error_x, error_y, speed, readjust_duration, original_target_x, original_target_y
+            error_x, error_y, speed, readjust_duration, original_target_x, original_target_y, stop_event
         )
 
     def _calculate_speed_and_duration(self, distance):
@@ -102,7 +106,14 @@ class _Move(_MouseAction):
         return self.x + error_x, self.y + error_y, error_x, error_y
 
     def _execute_readjustment_phases(
-        self, error_x, error_y, speed, readjust_duration, original_target_x, original_target_y
+        self,
+        error_x,
+        error_y,
+        speed,
+        readjust_duration,
+        original_target_x,
+        original_target_y,
+        stop_event = None
     ):
         if speed >= self._SPEED_THRESHOLD_FOR_THREE_PHASES: number_of_phases = 3
         elif speed >= self._SPEED_THRESHOLD_FOR_TWO_PHASES: number_of_phases = 2
@@ -123,61 +134,69 @@ class _Move(_MouseAction):
             target_y = self.y + error_y * (1 - fraction)
             current_x, current_y = MouseInfo().coordinates
             self._execute_movement_phase(
-                current_x, current_y, target_x, target_y, phase_times[i], speed * 0.5
+                current_x, current_y, target_x, target_y, phase_times[i], speed * 0.5, stop_event
             )
             if self.physics.target_radius > 0:
                 latest_x, latest_y = MouseInfo().coordinates
                 if math.hypot(latest_x - original_target_x, latest_y - original_target_y) <= self.physics.target_radius:
                     break
             if i < number_of_phases - 1:
-                target_time = time.perf_counter() + pauses[i]
-                while time.perf_counter() < target_time: pass
+                Timing().wait(pauses[i])
+                if (stop_event is not None and stop_event.is_set()) or KILL_SWITCH_EVENT.is_set():
+                    return
 
     def _calculate_phase_times(self, phases, available_time):
-        if phases == 1:
-            return [available_time]
-        elif phases == 2:
-            split = random.uniform(
-                self._MINIMUM_TIME_FRACTION_FOR_TWO_PHASES, self._MAXIMUM_TIME_FRACTION_FOR_TWO_PHASES
-            )
-            return [available_time * split, available_time * (1 - split)]
-        else:
-            phase_1_fraction = random.uniform(
-                self._MINIMUM_TIME_FRACTION_FOR_THREE_PHASES,
-                self._MAXIMUM_TIME_FRACTION_FOR_THREE_PHASES
-            )
-            phase_2_fraction = random.uniform(
-                self._MINIMUM_TIME_FRACTION_FOR_THREE_PHASES,
-                self._MAXIMUM_TIME_FRACTION_FOR_THREE_PHASES
-            )
-            return [
-                available_time * phase_1_fraction, available_time * phase_2_fraction, available_time * (1 - phase_1_fraction - phase_2_fraction)
-            ]
+        match phases:
+            case 1: return [available_time]
+            case 2:
+                split = random.uniform(
+                    self._MINIMUM_TIME_FRACTION_FOR_TWO_PHASES,
+                    self._MAXIMUM_TIME_FRACTION_FOR_TWO_PHASES
+                )
+                return [available_time * split, available_time * (1 - split)]
+            case 3:
+                phase_1_fraction = random.uniform(
+                    self._MINIMUM_TIME_FRACTION_FOR_THREE_PHASES,
+                    self._MAXIMUM_TIME_FRACTION_FOR_THREE_PHASES
+                )
+                phase_2_fraction = random.uniform(
+                    self._MINIMUM_TIME_FRACTION_FOR_THREE_PHASES,
+                    self._MAXIMUM_TIME_FRACTION_FOR_THREE_PHASES
+                )
+                return [
+                    available_time * phase_1_fraction, available_time * phase_2_fraction, available_time * (1 - phase_1_fraction - phase_2_fraction)
+                ]
 
     def _calculate_error_fractions(self, phases):
-        if phases == 1: return [1]
-        elif phases == 2:
-            fraction_1 = self._TWO_PHASES_FIRST_TARGET_FRACTION + random.uniform(
-                -self._PHASE_TARGET_FRACTION_VARIATION, self._PHASE_TARGET_FRACTION_VARIATION
-            )
-            return [min(1, fraction_1), 1]
-        else:
-            fraction_1 = self._THREE_PHASES_FIRST_TARGET_FRACTION + random.uniform(
-                -self._PHASE_TARGET_FRACTION_VARIATION, self._PHASE_TARGET_FRACTION_VARIATION
-            )
-            fraction_2 = self._THREE_PHASES_SECOND_TARGET_FRACTION + random.uniform(
-                -self._PHASE_TARGET_FRACTION_VARIATION, self._PHASE_TARGET_FRACTION_VARIATION
-            )
-            return [min(1, fraction_1), min(1, fraction_2), 1]
+        match phases:
+            case 1: return [1]
+            case 2:
+                fraction_1 = self._TWO_PHASES_FIRST_TARGET_FRACTION + random.uniform(
+                    -self._PHASE_TARGET_FRACTION_VARIATION, self._PHASE_TARGET_FRACTION_VARIATION
+                )
+                return [min(1, fraction_1), 1]
+            case 3:
+                fraction_1 = self._THREE_PHASES_FIRST_TARGET_FRACTION + random.uniform(
+                    -self._PHASE_TARGET_FRACTION_VARIATION, self._PHASE_TARGET_FRACTION_VARIATION
+                )
+                fraction_2 = self._THREE_PHASES_SECOND_TARGET_FRACTION + random.uniform(
+                    -self._PHASE_TARGET_FRACTION_VARIATION, self._PHASE_TARGET_FRACTION_VARIATION
+                )
+                return [min(1, fraction_1), min(1, fraction_2), 1]
 
-    def _execute_movement_phase(self, initial_x, initial_y, final_x, final_y, duration, speed):
+    def _execute_movement_phase(
+        self, initial_x, initial_y, final_x, final_y, duration, speed, stop_event = None
+    ):
         if duration <= 0: return
         if duration < 1e-6:
             _set_cursor_position(final_x, final_y)
             return
         distance = duration * speed
         steps = int(
-            max(duration * self._STEPS_PER_SECOND, distance / self._MAXIMUM_PIXELS_PER_STEP, self._MINIMUM_STEPS)
+            max(
+                duration * self._STEPS_PER_SECOND, distance / self._MAXIMUM_PIXELS_PER_STEP,
+                self._MINIMUM_STEPS
+            )
         )
         path = self._generate_human_path(initial_x, initial_y, final_x, final_y, steps, speed)
         speed_factor = max(1, speed / self._REFERENCE_SPEED)
@@ -185,7 +204,9 @@ class _Move(_MouseAction):
         start_time = time.perf_counter()
         expected_time = start_time
         previous_x, previous_y = initial_x, initial_y
-        distortion_factor = random.uniform(-self._MAXIMUM_EASE_DISTORTION, self._MAXIMUM_EASE_DISTORTION)
+        distortion_factor = random.uniform(
+            -self._MAXIMUM_EASE_DISTORTION, self._MAXIMUM_EASE_DISTORTION
+        )
         for i in range(steps):
             progress = (i + 1) / steps
             ease = self._distorted_ease(progress, distortion_factor)
@@ -206,7 +227,11 @@ class _Move(_MouseAction):
             if self.physics.maximum_speed > 0 and instant_speed > self.physics.maximum_speed:
                 step_duration = step_distance / self.physics.maximum_speed
             expected_time += step_duration
-            while time.perf_counter() < expected_time: pass
+            remaining_time = expected_time - time.perf_counter()
+            if remaining_time > 0:
+                Timing().wait(remaining_time)
+                if (stop_event is not None and stop_event.is_set()) or KILL_SWITCH_EVENT.is_set():
+                    return
             previous_x, previous_y = current_x, current_y
 
     def _generate_human_path(self, initial_x, initial_y, target_x, target_y, steps, speed):

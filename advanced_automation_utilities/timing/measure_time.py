@@ -5,9 +5,11 @@ lazy from tui_utilities import print, decimal_format
 
 def measure_time(function: Callable) -> Callable:
     """
+    **`@measure_time`:** A decorator to automatically measure and print the execution time of any function.
+
     **Description:**
 
-    A decorator to automatically measure and print the execution time of any function.
+    Place this above your function definitions to measure their execution time.
 
     **Arguments:**
 

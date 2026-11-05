@@ -4,49 +4,83 @@ import advanced_automation_utilities.backend.windows._keyboard as keyboard_backe
 import advanced_automation_utilities.backend.windows._screen as screen_backend
 import advanced_automation_utilities.backend.windows._sound as sound_backend
 import advanced_automation_utilities.backend.windows._system as system_backend
+from pathlib import Path
 from types import SimpleNamespace
 import ctypes
+import os
 import pytest
+import threading
 import numpy
 import io
 import base64
 
 class _MouseUser32:
     def __init__(self):
-        self.events = []
+        self.sent_inputs = []
         self.cursor_position = (17, -4)
         self.set_positions = []
 
-    def mouse_event(self, *args): self.events.append(args)
+    def SendInput(self, count, pointer, size):
+        array_type = mouse_backend._Input * count
+        address = ctypes.cast(pointer, ctypes.c_void_p).value
+        assert address is not None
+        inputs = array_type.from_address(address)
+        self.sent_inputs.extend(
+            (
+                item.mouse_input.flags,
+                ctypes.c_long(item.mouse_input.mouse_data).value,
+                item.mouse_input.delta_x,
+                item.mouse_input.delta_y
+            )
+            for item in inputs
+        )
 
-    def get_cursor_pos(self, pointer):
+    def GetCursorPos(self, pointer):
         point = ctypes.cast(pointer, ctypes.POINTER(mouse_backend._Point)).contents
         point.x, point.y = self.cursor_position
 
-    def set_cursor_pos(self, x, y): self.set_positions.append((x, y))
+    def SetCursorPos(self, x, y): self.set_positions.append((x, y))
+
+def test_windows_backend_platform_guard_rejects_non_windows(monkeypatch):
+    modules = ("_mouse", "_keyboard", "_screen", "_sound", "_system")
+    items = [
+        (
+            str(Path(f"advanced_automation_utilities/backend/windows/{module}.py").resolve()),
+            "\n".join(
+                Path(
+                    f"advanced_automation_utilities/backend/windows/{module}.py"
+                ).read_text(encoding = "utf-8").splitlines()[:5]
+            )
+        )
+        for module in modules
+    ]
+    monkeypatch.setattr(os, "name", "posix")
+    for file_path, header in items:
+        with pytest.raises(NotImplementedError, match = "only supported on Windows"):
+            exec(compile(header, file_path, "exec"), {})
 
 def test_mouse_backend_translates_every_supported_command(monkeypatch):
     user32 = _MouseUser32()
-    user32.GetCursorPos = user32.get_cursor_pos
-    user32.SetCursorPos = user32.set_cursor_pos
-    monkeypatch.setattr(mouse_backend.ctypes, "windll", SimpleNamespace(user32 = user32))
-    for button in ("left", "right", "middle", "unsupported"): mouse_backend._mouse_down(button)
-    for button in ("left", "right", "middle", "unsupported"): mouse_backend._mouse_up(button)
+    monkeypatch.setattr(mouse_backend, "_user32", user32)
+    for button in ("left", "right", "middle"): mouse_backend._mouse_down(button)
+    for button in ("left", "right", "middle"): mouse_backend._mouse_up(button)
+    with pytest.raises(KeyError): mouse_backend._mouse_down("unsupported")
+    with pytest.raises(KeyError): mouse_backend._mouse_up("unsupported")
     assert mouse_backend._get_cursor_position() == (17, -4)
     mouse_backend._set_cursor_position(3.9, -2.8)
-    for direction in ("up", "down", "right", "left", "unsupported"):
-        mouse_backend._scroll(4.9, direction)
-    assert user32.events == [
-        (mouse_backend._LEFT_BUTTON_DOWN, 0, 0, 0, 0),
-        (mouse_backend._RIGHT_BUTTON_DOWN, 0, 0, 0, 0),
-        (mouse_backend._MIDDLE_BUTTON_DOWN, 0, 0, 0, 0),
-        (mouse_backend._LEFT_BUTTON_UP, 0, 0, 0, 0),
-        (mouse_backend._RIGHT_BUTTON_UP, 0, 0, 0, 0),
-        (mouse_backend._MIDDLE_BUTTON_UP, 0, 0, 0, 0),
-        (mouse_backend._WHEEL, 0, 0, 4, 0),
-        (mouse_backend._WHEEL, 0, 0, -4, 0),
-        (mouse_backend._HORIZONTAL_WHEEL, 0, 0, 4, 0),
-        (mouse_backend._HORIZONTAL_WHEEL, 0, 0, -4, 0)
+    for direction in ("up", "down", "right", "left"): mouse_backend._scroll(4.9, direction)
+    with pytest.raises(KeyError): mouse_backend._scroll(4.9, "unsupported")
+    assert user32.sent_inputs == [
+        (mouse_backend._LEFT_BUTTON_DOWN, 0, 0, 0),
+        (mouse_backend._RIGHT_BUTTON_DOWN, 0, 0, 0),
+        (mouse_backend._MIDDLE_BUTTON_DOWN, 0, 0, 0),
+        (mouse_backend._LEFT_BUTTON_UP, 0, 0, 0),
+        (mouse_backend._RIGHT_BUTTON_UP, 0, 0, 0),
+        (mouse_backend._MIDDLE_BUTTON_UP, 0, 0, 0),
+        (mouse_backend._WHEEL, 4, 0, 0),
+        (mouse_backend._WHEEL, -4, 0, 0),
+        (mouse_backend._HORIZONTAL_WHEEL, 4, 0, 0),
+        (mouse_backend._HORIZONTAL_WHEEL, -4, 0, 0)
     ]
     assert user32.set_positions == [(3, -2)]
 
@@ -63,7 +97,9 @@ class _KeyboardUser32:
 
     def SendInput(self, count, pointer, _size):
         array_type = keyboard_backend._Input * count
-        inputs = ctypes.cast(pointer, ctypes.POINTER(array_type)).contents
+        address = ctypes.cast(pointer, ctypes.c_void_p).value
+        assert address is not None
+        inputs = array_type.from_address(address)
         self.sent_inputs.extend(
             (
                 item.keyboard_input.virtual_key_code,
@@ -204,14 +240,23 @@ def test_keyboard_backend_blocking_kill_switch_and_hook_lifecycle(monkeypatch):
     monkeypatch.setattr(keyboard_backend, "_hook_ready_event", event)
     monkeypatch.setattr(keyboard_backend.threading, "Thread", FakeThread)
     monkeypatch.setattr(keyboard_backend, "_hook_thread", None)
+    monkeypatch.setattr(keyboard_backend, "_hook_id", 100)
     keyboard_backend._ensure_hook()
-    assert keyboard_backend._hook_thread.started is True
+    hook_thread = keyboard_backend._hook_thread
+    assert isinstance(hook_thread, FakeThread)
+    assert hook_thread.started is True
     assert (event.clear_calls, event.wait_calls) == (1, 1)
+    monkeypatch.setattr(keyboard_backend, "_hook_thread", None)
+    monkeypatch.setattr(keyboard_backend, "_hook_id", 0)
+    with pytest.raises(OSError, match = "Failed to install low-level keyboard hook"):
+        keyboard_backend._ensure_hook()
+
     class LiveThread:
         def is_alive(self): return True
+
     monkeypatch.setattr(keyboard_backend, "_hook_thread", LiveThread())
     keyboard_backend._ensure_hook()
-    assert (event.clear_calls, event.wait_calls) == (1, 1)
+    assert (event.clear_calls, event.wait_calls) == (2, 2)
 
 def test_keyboard_hook_worker_handles_down_up_blocked_and_kill_switch_events(monkeypatch):
     user32 = _KeyboardUser32()
@@ -230,6 +275,7 @@ def test_keyboard_hook_worker_handles_down_up_blocked_and_kill_switch_events(mon
     monkeypatch.setattr(keyboard_backend, "trigger_kill_switch", lambda: triggered.append(True))
     keyboard_backend._hook_worker()
     handler = keyboard_backend._hook_function
+    assert handler is not None
 
     def invoke(hook_code, message, virtual_key, flags = 0):
         hook = keyboard_backend._KeyboardHookStruct(virtual_key_code = virtual_key, flags = flags)
@@ -256,6 +302,68 @@ def test_keyboard_hook_worker_handles_down_up_blocked_and_kill_switch_events(mon
     assert triggered == [True, True]
     assert user32.translate_calls == 1
     assert user32.dispatch_calls == 1
+
+def test_uninstalling_idle_keyboard_hook_joins_its_worker_thread(monkeypatch):
+    class ThreadWithNativeId:
+        def __init__(self):
+            self.native_id = 1234
+            self.joined = False
+
+        def is_alive(self): return True
+
+        def join(self, timeout = None): self.joined = True
+
+    unhook_calls = []
+    user32 = SimpleNamespace(
+        UnhookWindowsHookEx = lambda hook_id: unhook_calls.append(("unhook", hook_id)) or True,
+        PostThreadMessageW = lambda thread_id, message, wparam, lparam: (
+            unhook_calls.append(("post", thread_id, message)) or True
+        )
+    )
+    fake_thread = ThreadWithNativeId()
+    monkeypatch.setattr(keyboard_backend, "_user32", user32)
+    monkeypatch.setattr(keyboard_backend, "_hook_id", 42)
+    monkeypatch.setattr(keyboard_backend, "_hook_thread", fake_thread)
+    monkeypatch.setattr(keyboard_backend, "_hook_function", "func")
+    monkeypatch.setattr(keyboard_backend, "_blocked_keys", set())
+    monkeypatch.setattr(keyboard_backend, "_kill_switch_enabled", False)
+    keyboard_backend._unhook_if_idle()
+    assert unhook_calls == [("unhook", 42), ("post", 1234, 0x0012)]
+    assert fake_thread.joined is True
+    assert keyboard_backend._hook_id is None
+    assert keyboard_backend._hook_thread is None
+    assert keyboard_backend._hook_function is None
+
+def test_uninstalling_idle_keyboard_hook_without_a_worker_thread(monkeypatch):
+    unhook_calls = []
+    monkeypatch.setattr(
+        keyboard_backend,
+        "_user32",
+        SimpleNamespace(UnhookWindowsHookEx = lambda hook_id: unhook_calls.append(hook_id))
+    )
+    monkeypatch.setattr(keyboard_backend, "_hook_id", 99)
+    monkeypatch.setattr(keyboard_backend, "_hook_thread", None)
+    monkeypatch.setattr(keyboard_backend, "_hook_function", "func")
+    monkeypatch.setattr(keyboard_backend, "_blocked_keys", set())
+    monkeypatch.setattr(keyboard_backend, "_kill_switch_enabled", False)
+    keyboard_backend._unhook_if_idle()
+    assert unhook_calls == [99]
+    assert keyboard_backend._hook_id is None
+    assert keyboard_backend._hook_function is None
+
+def test_failed_keyboard_hook_installation_does_not_start_message_loop(monkeypatch):
+    user32 = _KeyboardUser32()
+    user32.next_hook = 0
+    ready_event = threading.Event()
+    monkeypatch.setattr(keyboard_backend, "_user32", user32)
+    monkeypatch.setattr(keyboard_backend, "_hook_ready_event", ready_event)
+    monkeypatch.setattr(keyboard_backend, "_HookProcedure", lambda function: function)
+    monkeypatch.setattr(keyboard_backend, "_hook_id", None)
+    keyboard_backend._hook_worker()
+    assert keyboard_backend._hook_id == 0
+    assert ready_event.is_set()
+    assert user32.translate_calls == 0
+    assert user32.dispatch_calls == 0
 
 class _Capture:
     def __init__(self, monitors, screenshot = None):
@@ -288,10 +396,9 @@ def test_screen_backend_reads_pixels_work_areas_and_screenshots(monkeypatch):
         SystemParametersInfoW = set_work_area
     )
     gdi32 = SimpleNamespace(GetPixel = lambda context, x, y: 0x0032140A)
-    monkeypatch.setattr(screen_backend, "mss", SimpleNamespace(mss = lambda: capture))
-    monkeypatch.setattr(
-        screen_backend.ctypes, "windll", SimpleNamespace(user32 = user32, gdi32 = gdi32)
-    )
+    monkeypatch.setattr(screen_backend, "mss", SimpleNamespace(MSS = lambda: capture))
+    monkeypatch.setattr(screen_backend, "_user32", user32)
+    monkeypatch.setattr(screen_backend, "_gdi32", gdi32)
     assert screen_backend._get_screen_resolution() == (800, 600)
     assert screen_backend._get_pixel_color(0, 20) == (10, 20, 50)
     with pytest.raises(ValueError): screen_backend._get_pixel_color(-11, 20)
@@ -320,7 +427,7 @@ def test_screen_backend_adjusts_coordinates_and_locates_image_without_real_files
         {"left": 0, "top": 0, "width": 1, "height": 1},
         {"left": 100, "top": 200, "width": 1, "height": 1}
     ])
-    monkeypatch.setattr(screen_backend, "mss", SimpleNamespace(mss = lambda: capture))
+    monkeypatch.setattr(screen_backend, "mss", SimpleNamespace(MSS = lambda: capture))
     assert screen_backend._adjust_coordinates_for_region(1.9, 2.1, (10, 20, 30, 40)) == (11, 22)
     assert screen_backend._adjust_coordinates_for_region(1.9, 2.1, None, 1) == (101, 202)
     assert screen_backend._adjust_coordinates_for_region(1.9, 2.1, None) == (1, 2)
@@ -412,7 +519,7 @@ class _FakeWinMM:
         self.commands = []
         self.open_error = open_error
 
-    def mci_send_string(self, command, *_):
+    def mciSendStringW(self, command, *_):
         self.commands.append(command)
         return int(self.open_error and command.startswith("open "))
 
@@ -429,14 +536,13 @@ def test_sound_backend_uses_safe_win32_commands_and_reports_open_errors(monkeypa
         MessageBeep = lambda flag: system_sounds.append(flag)
     )
     winmm = _FakeWinMM()
-    winmm.mciSendStringW = winmm.mci_send_string
     process_calls = []
     fake_subprocess = SimpleNamespace(
         CREATE_NO_WINDOW = 73,
         run = lambda arguments, **kwargs: process_calls.append((arguments, kwargs))
     )
     monkeypatch.setattr(sound_backend, "winsound", winsound)
-    monkeypatch.setattr(sound_backend.ctypes, "windll", SimpleNamespace(winmm = winmm))
+    monkeypatch.setattr(sound_backend, "_winmm", winmm)
     monkeypatch.setattr(sound_backend, "subprocess", fake_subprocess)
     sound_backend._play_beep_sound(440, 0.125)
     sound_backend._play_system_sound("WARNING")
@@ -456,8 +562,7 @@ def test_sound_backend_uses_safe_win32_commands_and_reports_open_errors(monkeypa
     assert "Speak('Ada''s test')" in decoded
     assert process_calls[0][1] == {"creationflags": 73}
     failing_winmm = _FakeWinMM(open_error = True)
-    failing_winmm.mciSendStringW = failing_winmm.mci_send_string
-    monkeypatch.setattr(sound_backend.ctypes, "windll", SimpleNamespace(winmm = failing_winmm))
+    monkeypatch.setattr(sound_backend, "_winmm", failing_winmm)
     with pytest.raises(RuntimeError, match = "Could not play"):
         sound_backend._play_audio("C:/music/unreadable.wav")
     assert failing_winmm.commands == ["close audio", "open \"C:/music/unreadable.wav\" alias audio"]
@@ -760,9 +865,8 @@ def test_system_backend_power_operations_delegate_to_the_expected_windows_api(mo
         CREATE_NO_WINDOW = 91,
         run = lambda arguments, **kwargs: subprocess_calls.append((arguments, kwargs))
     )
-    monkeypatch.setattr(
-        system_backend.ctypes, "windll", SimpleNamespace(user32 = user32, powrprof = powrprof)
-    )
+    monkeypatch.setattr(system_backend, "_user32", user32)
+    monkeypatch.setattr(system_backend, "_powrprof", powrprof)
     monkeypatch.setattr(system_backend, "subprocess", fake_subprocess)
     system_backend._lock_screen()
     system_backend._sleep()

@@ -1,5 +1,5 @@
 from ._task import Task
-from ._asynchronous_context import _AsynchronousContext
+from ._asynchronous_context import _AsynchronousContext, _ACTIVE_ASYNCHRONOUS_QUEUES
 from .timing._wait import _Wait
 from .timing._wait_random import _WaitRandom
 from .timing._wait_until import _WaitUntil
@@ -8,6 +8,7 @@ from .exceptions import KillSwitchTriggered
 from typing import Any, Optional, Callable, Self
 import queue
 import threading
+import inspect
 
 class _QueueableController:
     def __init__(self):
@@ -15,19 +16,27 @@ class _QueueableController:
         self._queue: list[Any] = []
         self._task_queue: queue.Queue[Optional[Task]] = queue.Queue()
         self._worker_thread: Optional[threading.Thread] = None
+        self._worker_lock = threading.Lock()
         self.results: list[Any] = []
         self.last_result: Any = None
 
-    def asynchronous(self):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._close()
+
+    def asynchronous(self) -> _AsynchronousContext:
         """
+        **`asynchronous()`:** Queues actions for asynchronous execution.
+
         **Description:**
 
-        Context manager to queue actions and execute them asynchronously.
-        Returns a Task object that can be awaited or cancelled.
+        Context manager to queue actions and execute them asynchronously. Returns a context manager that yields a Task object that can be awaited or cancelled.
 
         **Returns:**
 
-        **`Task`**
+        **`_AsynchronousContext`**
 
         **Example:**
 
@@ -41,10 +50,11 @@ class _QueueableController:
 
     def wait(self, duration: float) -> Self:
         """
+        **`wait()`:** Pauses execution for an exact duration.
+
         **Description:**
 
-        Pauses execution for an exact amount of seconds.
-        Can be chained and queued asynchronously.
+        Pauses execution for an exact amount of seconds. Can be chained and queued asynchronously.
 
         **Arguments:**
 
@@ -64,10 +74,11 @@ class _QueueableController:
 
     def wait_random(self, minimum_duration: float, maximum_duration: float) -> Self:
         """
+        **`wait_random()`:** Pauses execution for a random duration within two limits.
+
         **Description:**
 
-        Pauses execution for a random duration between two limits.
-        Can be chained and queued asynchronously.
+        Pauses execution for a random duration between two limits. Can be chained and queued asynchronously.
 
         **Arguments:**
 
@@ -93,10 +104,11 @@ class _QueueableController:
         self, condition_function: Callable[[], bool], timeout: float = 0, poll_interval: float = 0.1
     ) -> Self:
         """
+        **`wait_until()`:** Pauses execution until a condition evaluates to True.
+
         **Description:**
 
-        Pauses execution until a given function or lambda condition evaluates to True.
-        Can be chained and queued asynchronously.
+        Pauses execution until a given function or lambda condition evaluates to True. Can be chained and queued asynchronously.
 
         **Arguments:**
 
@@ -125,45 +137,63 @@ class _QueueableController:
             poll_interval = poll_interval
         ))
 
-    def _ensure_worker_running(self):
+    def _execute_or_queue(self, action):
+            active_map = _ACTIVE_ASYNCHRONOUS_QUEUES.get()
+            stack = active_map.get(id(self))
+            if stack: stack[-1].append(action)
+            else:
+                result = action.execute()
+                self.results.append(result)
+                self.last_result = result
+            return self
+
+    def _worker_loop(self):
+            current_thread = threading.current_thread()
+            while True:
+                task = None
+                try:
+                    task = self._task_queue.get()
+                    if task is None:
+                        with self._worker_lock:
+                            if self._worker_thread is current_thread: self._worker_thread = None
+                        return
+                    if task._cancelled or KILL_SWITCH_EVENT.is_set(): task._done_event.set()
+                    else:
+                        try:
+                            for action in task._actions:
+                                if task._cancelled or KILL_SWITCH_EVENT.is_set(): break
+                                if "stop_event" in inspect.signature(action.execute).parameters:
+                                    result = action.execute(stop_event = task._cancel_event)
+                                else: result = action.execute()
+                                task.results.append(result)
+                                task.last_result = result
+                        except BaseException as error:
+                            task._exception = error
+                            if not isinstance(error, (Exception, KillSwitchTriggered)): raise
+                        finally: task._done_event.set()
+                except BaseException:
+                    if task is not None and not task._done_event.is_set():
+                        task._exception = KillSwitchTriggered()
+                        task._done_event.set()
+                with self._worker_lock:
+                    if self._task_queue.empty():
+                        if self._worker_thread is current_thread: self._worker_thread = None
+                        return
+
+    def _ensure_worker_running_locked(self):
         if self._worker_thread is None or not self._worker_thread.is_alive():
             self._worker_thread = threading.Thread(
                 target = self._worker_loop, daemon = True, name = f"worker_thread_{id(self)}"
             )
             self._worker_thread.start()
 
-    def _worker_loop(self):
-        while True:
-            task = None
-            try:
-                task = self._task_queue.get()
-                if task is None: break
-                if task._cancelled or KILL_SWITCH_EVENT.is_set():
-                    task._done_event.set()
-                    continue
-                try:
-                    for action in task._actions:
-                        if task._cancelled or KILL_SWITCH_EVENT.is_set(): break
-                        import inspect
-                        if "stop_event" in inspect.signature(action.execute).parameters:
-                            result = action.execute(stop_event = task._cancel_event)
-                        else: result = action.execute()
-                        task.results.append(result)
-                        task.last_result = result
-                except BaseException as error:
-                    task._exception = error
-                    if not isinstance(error, (Exception, KillSwitchTriggered)): raise
-                finally: task._done_event.set()
-            except BaseException:
-                if task is not None and not task._done_event.is_set():
-                    task._exception = KillSwitchTriggered()
-                    task._done_event.set()
-                continue
+    def _submit_task(self, task):
+        with self._worker_lock:
+            self._task_queue.put(task)
+            self._ensure_worker_running_locked()
 
-    def _execute_or_queue(self, action):
-        if self._queue_mode: self._queue.append(action)
-        else:
-            result = action.execute()
-            self.results.append(result)
-            self.last_result = result
-        return self
+    def _close(self):
+        with self._worker_lock:
+            worker_thread = self._worker_thread
+            if worker_thread is not None and worker_thread.is_alive(): self._task_queue.put(None)
+        if worker_thread is not None: worker_thread.join()

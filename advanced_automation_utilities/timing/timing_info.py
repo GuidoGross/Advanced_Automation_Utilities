@@ -2,6 +2,8 @@ import time
 
 class TimingInfo:
     """
+    **`TimingInfo`:** Provides high-resolution time measurements.
+
     **Description:**
 
     Class that provides instantaneous timing information.
@@ -25,4 +27,4 @@ class TimingInfo:
         current_time = TimingInfo().time
         ```
         """
-        return time.time()
+        return time.perf_counter()

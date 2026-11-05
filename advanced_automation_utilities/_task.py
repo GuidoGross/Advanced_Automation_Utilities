@@ -1,8 +1,13 @@
 from typing import Any, Optional
+import weakref
 import threading
+
+_ACTIVE_TASKS: weakref.WeakSet = weakref.WeakSet()
 
 class Task:
     """
+    **`Task`:** Tracks an asynchronous task and provides waiting, cancellation, and results.
+
     **Description:**
 
     Represents an asynchronous sequence of actions.
@@ -15,12 +20,15 @@ class Task:
         self._cancelled: bool = False
         self.results: list[Any] = []
         self.last_result: Any = None
+        _ACTIVE_TASKS.add(self)
 
     def wait(self) -> None:
         """
+        **`Task().wait()`:** Blocks until the task completes or is cancelled.
+
         **Description:**
 
-        Blocks the calling thread until the task is complete or cancelled.
+        Waits for every queued action to finish or for cancellation to stop the sequence. If an action raises an exception, the same exception is raised in the thread calling this method.
 
         **Returns:**
 
@@ -38,9 +46,11 @@ class Task:
 
     def cancel(self) -> None:
         """
+        **`Task().cancel()`:** Cancels a task that has not started or is still running.
+
         **Description:**
 
-        Cancels the task if it hasn't started or is currently running.
+        Requests cancellation of the queued sequence. Actions that have not started are skipped, and a running action receives the task's cancellation event so it can stop cooperatively.
 
         **Returns:**
 
@@ -65,9 +75,11 @@ class Task:
     @property
     def is_done(self) -> bool:
         """
+        **`Task().is_done`:** Checks whether the task is complete or cancelled.
+
         **Description:**
 
-        Checks if the task is complete or cancelled.
+        Returns True after the queued sequence has stopped, whether it completed, was cancelled, or ended because an action raised an exception.
 
         **Returns:**
 

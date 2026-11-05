@@ -2,6 +2,8 @@ from ..backend.windows._system import _get_clipboard_text, _get_active_window_ti
 
 class SystemInfo:
     """
+    **`SystemInfo`:** Reads clipboard content, active window title, and process state.
+
     **Description:**
 
     Provides real-time information about the operating system and hardware.

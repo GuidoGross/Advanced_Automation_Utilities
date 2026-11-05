@@ -1,0 +1,66 @@
+name: Tag Release
+
+on:
+  workflow_run:
+    workflows: ["Publish"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{steps.version.outputs.version}}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{github.event.workflow_run.head_sha || github.sha}}
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Read package version
+        id: version
+        run: |
+          python - <<'PY'
+          import tomllib
+          import os
+
+          with open("pyproject.toml", "rb") as file: version = tomllib.load(file)["project"]["version"]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding = "utf-8") as output:
+              output.write(f"version={version}\n")
+          PY
+  tag:
+    needs: verify
+    if: needs.verify.result == 'success'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: tag-release-${{needs.verify.outputs.version}}
+      cancel-in-progress: false
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{github.event.workflow_run.head_sha || github.sha}}
+          fetch-depth: 0
+      - name: Create Git Tag
+        env:
+          PACKAGE_VERSION: ${{needs.verify.outputs.version}}
+          TARGET_SHA: ${{github.event.workflow_run.head_sha || github.sha}}
+        run: |
+          git fetch --tags origin
+          tag_name="v$PACKAGE_VERSION"
+          if git tag --list "$tag_name" | grep -Fxq "$tag_name"; then
+            echo "Tag $tag_name already exists."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag_name" "$TARGET_SHA" -m "Release $tag_name"
+          git push origin "$tag_name"

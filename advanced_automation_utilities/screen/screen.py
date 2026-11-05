@@ -7,6 +7,8 @@ lazy import mss.base
 
 class Screen:
     """
+    **`Screen`:** Captures screenshots and locates or reads visual content.
+
     **Description:**
 
     Advanced computer vision leveraging OpenCV and native Windows OCR. Read text from specific regions, locate UI elements via template matching, and interact with pixel-perfect accuracy across multi-monitor setups without requiring external cloud services.

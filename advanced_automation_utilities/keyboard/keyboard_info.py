@@ -2,6 +2,8 @@ from ..backend.windows._keyboard import _get_virtual_key_code, _is_pressed
 
 class KeyboardInfo:
     """
+    **`KeyboardInfo`:** Reads the current physical state of keyboard keys.
+
     **Description:**
 
     Provides real-time information about the keyboard state.
@@ -27,10 +29,6 @@ class KeyboardInfo:
         ```python
         is_shift_down = KeyboardInfo().is_pressed(key = "shift")
         ```
-
-        ### **Screen Utilities (screen)**
-
-        **Advanced computer vision leveraging OpenCV and Windows OCR:**
         """
         if not _get_virtual_key_code(key):
             raise KeyError(f"The \"{key}\" key is not valid or supported.")

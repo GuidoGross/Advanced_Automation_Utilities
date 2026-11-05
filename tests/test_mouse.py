@@ -1,10 +1,11 @@
-from advanced_automation_utilities.mouse import Mouse, MousePhysics, _move, _wander
+from advanced_automation_utilities.mouse import Mouse, MouseInfo, MousePhysics, _move, _wander
 from advanced_automation_utilities.mouse._move import _Move
 from advanced_automation_utilities.mouse._click import _Click
 from advanced_automation_utilities.mouse._drag_and_drop import _DragAndDrop
 from advanced_automation_utilities.mouse._scroll import _Scroll
 from advanced_automation_utilities.mouse._scroll_until import _ScrollUntil
 from advanced_automation_utilities.mouse._wander_until import _WanderUntil
+from advanced_automation_utilities._kill_switch_event import KILL_SWITCH_EVENT
 import advanced_automation_utilities.mouse.mouse as mouse_module
 import advanced_automation_utilities.mouse._mouse_action as mouse_action_module
 import advanced_automation_utilities.mouse.mouse_info as mouse_info_module
@@ -69,14 +70,19 @@ def test_mouse_facade_and_info_delegation(monkeypatch):
     assert [name for name, _, _ in recorded_calls] == [
         "move", "drag", "scroll", "wander", "wander-until"
     ]
+    info_calls = {}
 
     class FakeScreenInfo:
         def pixel_color(self, x_coordinate, y_coordinate, format):
             return (x_coordinate, y_coordinate, format)
 
-        def pixel_matches_color(self, **keyword_arguments): return keyword_arguments
+        def pixel_matches_color(self, **keyword_arguments):
+            info_calls["pixel_matches_color"] = keyword_arguments
+            return True
 
-        def on_screen(self, *arguments, **keyword_arguments): return arguments, keyword_arguments
+        def on_screen(self, *arguments, **keyword_arguments):
+            info_calls["on_screen"] = (arguments, keyword_arguments)
+            return True
 
     monkeypatch.setattr(mouse_info_module, "_get_cursor_position", lambda: (4, 5))
     monkeypatch.setattr(mouse_info_module, "ScreenInfo", FakeScreenInfo)
@@ -84,8 +90,16 @@ def test_mouse_facade_and_info_delegation(monkeypatch):
     assert info.coordinates == (4, 5)
     assert info.x == 4 and info.y == 5
     assert info.pixel_color("hexadecimal") == (4, 5, "hexadecimal")
-    assert info.pixel_matches_color("#040506")["x"] == 4
-    assert info.on_screen(region = (0, 0, 10, 10))[0] == (4, 5)
+    assert info.pixel_matches_color("#040506") is True
+    assert info_calls["pixel_matches_color"] == {
+        "x": 4, "y": 5, "expected_color": "#040506", "tolerance": 1
+    }
+    assert info.on_screen(region = (0, 0, 10, 10)) is True
+    assert info_calls["on_screen"] == ((4, 5), {"region": (0, 0, 10, 10), "monitor_index": 0})
+
+def test_mouse_info_returns_integer_pointer_coordinates():
+    x, y = MouseInfo().coordinates
+    assert isinstance(x, int) and isinstance(y, int)
 
 def test_abstract_mouse_action_probe():
     class MouseActionProbe(mouse_action_module._MouseAction):
@@ -97,7 +111,7 @@ def test_abstract_mouse_action_probe():
 
 def test_mouse_physics_is_immutable():
     physics = MousePhysics(speed = 500)
-    with pytest.raises(FrozenInstanceError): physics.speed = 1
+    with pytest.raises(FrozenInstanceError): setattr(physics, "speed", 1)
 
 @given(
     start_x = strategies.integers(0, 1920),
@@ -167,6 +181,8 @@ def test_move_helper_paths_and_time_limited_phase_execution(fake_mouse, monkeypa
     assert speed_move._calculate_overshoot(0, 0, 100)[0:2] != (speed_move.x, speed_move.y)
     assert len(speed_move._calculate_phase_times(3, 1)) == 3
     assert len(speed_move._calculate_error_fractions(3)) == 3
+    assert speed_move._calculate_phase_times(4, 1) is None
+    assert speed_move._calculate_error_fractions(4) is None
     zero_duration_move = move_module._Move(1, 1, MousePhysics())
     zero_duration_move._execute_movement_phase(0, 0, 1, 1, 0, 1)
     zero_duration_move._execute_movement_phase(0, 0, 1, 1, 1e-7, 1)
@@ -236,12 +252,50 @@ def test_move_reaches_the_defensive_nan_readjustment_branch(fake_mouse, monkeypa
     monkeypatch.setattr(action, "_execute_movement_phase", lambda *args: None)
     action.execute()
 
+@pytest.mark.parametrize("signal_name", ["stop_event", "kill_switch"])
+def test_move_stops_during_wait_when_cancelled(signal_name, monkeypatch):
+    KILL_SWITCH_EVENT.clear()
+    stop_event = threading.Event()
+    moved_positions = []
+    wait_durations = []
+    move_action = move_module._Move(100, 100, MousePhysics())
+    monkeypatch.setattr(move_module, "MouseInfo", lambda: SimpleNamespace(coordinates = (0, 0)))
+    monkeypatch.setattr(
+        move_action,
+        "_generate_human_path",
+        lambda x1, y1, x2, y2, steps, speed: [(step, 0) for step in range(steps)]
+    )
+    monkeypatch.setattr(
+        move_module, "_set_cursor_position", lambda x, y: moved_positions.append((x, y))
+    )
+    monkeypatch.setattr(move_module.time, "perf_counter", lambda: 0)
+
+    def activate_cancellation(timing, duration):
+        wait_durations.append(duration)
+        stop_event.set() if signal_name == "stop_event" else KILL_SWITCH_EVENT.set()
+
+    monkeypatch.setattr(move_module.Timing, "wait", activate_cancellation)
+    try: move_action._execute_movement_phase(0, 0, 10, 10, 0.1, 100, stop_event)
+    finally: KILL_SWITCH_EVENT.clear()
+    assert len(wait_durations) == 1
+    assert len(moved_positions) == 1
+
+    stop_event.clear()
+    moved_phases = []
+    monkeypatch.setattr(move_action, "_execute_movement_phase", lambda *args: moved_phases.append(args))
+    wait_durations.clear()
+    monkeypatch.setattr(
+        move_module.Timing, "wait", lambda timing, duration: activate_cancellation(timing, duration)
+    )
+    try: move_action._execute_readjustment_phases(1, 1, 1500, 1, 100, 100, stop_event)
+    finally: KILL_SWITCH_EVENT.clear()
+    assert len(wait_durations) == 1
+    assert len(moved_phases) == 1
+
 def test_click_performs_every_hold_and_release_for_a_multi_click(monkeypatch, fake_mouse):
     calls = []
     fake_mouse.set_position(0, 0)
-    monkeypatch.setattr(
-        hold_click_module, "_mouse_down", lambda button: calls.append(("DOWN", button))
-    )
+    monkeypatch.setattr(hold_click_module, "_mouse_down", lambda button: calls.append(("DOWN", button)))
     monkeypatch.setattr(release_click_module, "_mouse_up", lambda button: calls.append(("UP", button)))
     _Click(0, 0, button = "right", clicks = 3, physics = MousePhysics()).execute()
     assert calls == [("DOWN", "right"), ("UP", "right")] * 3

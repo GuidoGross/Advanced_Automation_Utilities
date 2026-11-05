@@ -1,5 +1,7 @@
 from advanced_automation_utilities import KillSwitchTriggered
 from advanced_automation_utilities._queueable_controller import _QueueableController
+from advanced_automation_utilities._asynchronous_context import _AsynchronousContext
+from advanced_automation_utilities._task import Task
 from advanced_automation_utilities._kill_switch_event import trigger_kill_switch, KILL_SWITCH_EVENT
 from advanced_automation_utilities._kill_switch_event import _asynchronous_raise
 import advanced_automation_utilities._kill_switch_event as kill_switch_module
@@ -91,6 +93,18 @@ def test_an_empty_asynchronous_block_resolves_immediately():
     with controller.asynchronous() as task: pass
     assert task._done_event.is_set()
 
+def test_nested_asynchronous_contexts():
+    controller = _QueueableController()
+    with controller.asynchronous() as task_1:
+        with controller.asynchronous() as task_2: controller._execute_or_queue(DummyAction(0.01))
+    task_2.wait()
+    task_1.wait()
+
+def test_asynchronous_context_exit_with_an_empty_stack():
+    controller = _QueueableController()
+    asynchronous_context = _AsynchronousContext(controller)
+    asynchronous_context.__exit__(None, None, None)
+
 def test_controller_level_wait_executes_through_the_queue(monkeypatch):
     controller = _QueueableController()
     start_time = time.perf_counter()
@@ -123,9 +137,51 @@ def test_controller_shuts_down_cleanly_on_the_none_sentinel():
     with controller.asynchronous() as task: controller._execute_or_queue(Tiny())
     task.wait()
     worker_thread = controller._worker_thread
+    assert worker_thread is not None
     controller._task_queue.put(None)
     worker_thread.join(timeout = 2)
     assert not worker_thread.is_alive()
+
+def test_controller_close_when_no_worker_is_running():
+    controller = _QueueableController()
+    controller._close()
+    assert controller._worker_thread is None
+
+def test_controller_context_manager_closes_its_worker():
+    with _QueueableController() as controller:
+        with controller.asynchronous() as task: controller._execute_or_queue(DummyAction(0.01))
+        task.wait()
+        worker_thread = controller._worker_thread
+        if worker_thread is not None: worker_thread.join()
+        assert controller._worker_thread is None
+        assert worker_thread is None or not worker_thread.is_alive()
+
+def test_worker_stops_after_processing_all_queued_tasks():
+    controller = _QueueableController()
+    with controller.asynchronous() as task: controller._execute_or_queue(DummyAction(0.01))
+    task.wait()
+    worker_thread = controller._worker_thread
+    if worker_thread is not None: worker_thread.join()
+    assert controller._worker_thread is None
+    assert worker_thread is None or not worker_thread.is_alive()
+
+def test_worker_restarts_for_a_later_asynchronous_block():
+    controller = _QueueableController()
+    worker_threads = []
+
+    class RecordWorker:
+        def execute(self): worker_threads.append(threading.current_thread())
+
+    with controller.asynchronous() as first_task: controller._execute_or_queue(RecordWorker())
+    first_task.wait()
+    first_worker = worker_threads[-1]
+    first_worker.join()
+    with controller.asynchronous() as second_task: controller._execute_or_queue(RecordWorker())
+    second_task.wait()
+    second_worker = worker_threads[-1]
+    second_worker.join()
+    assert first_worker is not second_worker
+    assert controller._worker_thread is None
 
 def test_a_task_cancelled_before_the_worker_ever_starts_it_runs_no_actions():
     class Tiny:
@@ -165,13 +221,14 @@ def test_cancelling_mid_task_stops_before_the_next_action():
     assert task._done_event.wait(timeout = 2)
     assert first.ran and not second.ran
 
-def test_exception_while_a_task_is_already_dequeued_still_resolves_that_task():
+def test_exception_while_a_task_is_already_dequeued_still_resolves_that_task(monkeypatch):
     class PoisonedTask:
         def __init__(self):
             self._done_event = threading.Event()
             self._actions = []
             self.results = []
             self.last_result = None
+            self._exception = None
 
         @property
         def _cancelled(self): raise KillSwitchTriggered()
@@ -194,10 +251,12 @@ def test_exception_while_a_task_is_already_dequeued_still_resolves_that_task():
 
         def put(self, item): self._fallback.put(item)
 
-    controller._task_queue = OneShotQueue()
-    controller._ensure_worker_running()
+        def empty(self): return self._fallback.empty()
+
+    monkeypatch.setattr(controller, "_task_queue", OneShotQueue())
+    controller._submit_task(Task())
     assert poisoned_task._done_event.wait(timeout = 2)
-    assert isinstance(poisoned_task._exception, KillSwitchTriggered)
+    assert isinstance(getattr(poisoned_task, "_exception"), KillSwitchTriggered)
     with controller.asynchronous() as task: controller._execute_or_queue(Tiny())
     assert task._done_event.wait(timeout = 2)
 
@@ -226,17 +285,12 @@ def test_worker_recovers_deterministically_from_the_exact_gap_the_outer_except_f
 
         def put(self, item): real_queue.put(item)
 
-    controller._task_queue = PoisonedQueue()
+        def empty(self): return real_queue.empty()
+
+    monkeypatch.setattr(controller, "_task_queue", PoisonedQueue())
     with controller.asynchronous() as task_a: controller._execute_or_queue(Tiny())
     task_a.wait()
     assert task_a.is_done and task_a._exception is None
-    worker_recovered = False
-    for _ in range(50):
-        if controller._worker_thread.is_alive():
-            worker_recovered = True
-            break
-        time.sleep(0.05)
-    assert worker_recovered
     with controller.asynchronous() as task_b: controller._execute_or_queue(Tiny())
     assert task_b._done_event.wait(timeout = 2)
 

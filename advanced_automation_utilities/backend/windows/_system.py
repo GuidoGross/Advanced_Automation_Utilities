@@ -1,3 +1,8 @@
+import os
+
+if os.name != "nt":
+    raise NotImplementedError("Advanced Automation Utilities is currently only supported on Windows.")
+
 from ...exceptions import WindowNotFoundError
 from ctypes import wintypes
 import ctypes
@@ -16,8 +21,10 @@ _WM_CLOSE = 0x0010
 _HWND_TOP = 0
 _SWP_NOSIZE = 0x0001
 _SWP_NOMOVE = 0x0002
-_user32 = ctypes.windll.user32
-_kernel32 = ctypes.windll.kernel32
+
+_user32 = ctypes.WinDLL("user32", use_last_error = True)
+_kernel32 = ctypes.WinDLL("kernel32", use_last_error = True)
+_powrprof = ctypes.WinDLL("powrprof", use_last_error = True)
 _user32.CreateWindowExW.argtypes = [
     wintypes.DWORD,
     wintypes.LPCWSTR,
@@ -82,14 +89,16 @@ def _open_clipboard(owner_window):
     deadline = time.perf_counter() + _CLIPBOARD_OPEN_TIMEOUT
     while True:
         if _user32.OpenClipboard(owner_window): return
-        if time.perf_counter() >= deadline: raise OSError("Could not open the Windows clipboard.")
+        if time.perf_counter() >= deadline:
+            raise OSError("Could not open the Windows clipboard.")
         time.sleep(_CLIPBOARD_RETRY_INTERVAL)
 
 def _get_clipboard_text():
     _open_clipboard(None)
     try:
         clipboard_handle = _user32.GetClipboardData(_CF_UNICODETEXT)
-        if not clipboard_handle: return ""
+        if not clipboard_handle:
+            return ""
         locked_memory = _kernel32.GlobalLock(clipboard_handle)
         if not locked_memory: raise OSError("Could not read text from the Windows clipboard.")
         try: return ctypes.wstring_at(locked_memory)
@@ -98,7 +107,8 @@ def _get_clipboard_text():
 
 def _set_clipboard_text(text):
     owner_window = _user32.CreateWindowExW(0, "STATIC", "", 0, 0, 0, 0, 0, None, None, None, None)
-    if not owner_window: raise OSError("Could not create a clipboard owner window.")
+    if not owner_window:
+        raise OSError("Could not create a clipboard owner window.")
     clipboard_open = False
     memory_handle = None
     try:
@@ -168,7 +178,8 @@ def _find_window(title):
 
     if not _user32.EnumWindows(_ENUM_WINDOWS_CALLBACK(add_matching_window), 0):
         raise OSError("Could not enumerate Windows windows.")
-    if not matching_windows: raise WindowNotFoundError(f"Window with title \"{title}\" not found.")
+    if not matching_windows:
+        raise WindowNotFoundError(f"Window with title \"{title}\" not found.")
     return matching_windows[0]
 
 def _focus_window(title):
@@ -191,13 +202,17 @@ def _close_window(title):
     if not _user32.PostMessageW(window_handle, _WM_CLOSE, 0, 0):
         raise OSError(f"Could not close the window with title \"{title}\".")
 
-def _lock_screen(): ctypes.windll.user32.LockWorkStation()
+def _lock_screen():
+    _user32.LockWorkStation()
 
-def _sign_out(): subprocess.run(["shutdown", "/l"], creationflags = subprocess.CREATE_NO_WINDOW)
+def _sign_out():
+    subprocess.run(["shutdown", "/l"], creationflags = subprocess.CREATE_NO_WINDOW)
 
-def _sleep(): ctypes.windll.powrprof.SetSuspendState(False, True, False)
+def _sleep():
+    _powrprof.SetSuspendState(False, True, False)
 
-def _hibernate(): subprocess.run(["shutdown", "/h"], creationflags = subprocess.CREATE_NO_WINDOW)
+def _hibernate():
+    subprocess.run(["shutdown", "/h"], creationflags = subprocess.CREATE_NO_WINDOW)
 
 def _shutdown(delay = 0):
     subprocess.run(["shutdown", "/s", "/t", str(delay)], creationflags = subprocess.CREATE_NO_WINDOW)

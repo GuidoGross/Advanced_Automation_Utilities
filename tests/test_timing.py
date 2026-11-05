@@ -1,9 +1,10 @@
+from advanced_automation_utilities.timing import Timing, measure_time
 from advanced_automation_utilities.timing._wait import _Wait
 from advanced_automation_utilities.timing._wait_until import _WaitUntil
-from advanced_automation_utilities.timing import measure_time
 from advanced_automation_utilities._kill_switch_event import KILL_SWITCH_EVENT
 import advanced_automation_utilities.timing.timing as timing_module
 import advanced_automation_utilities.timing._timing_action as timing_action_module
+import advanced_automation_utilities.timing._wait as wait_module
 import advanced_automation_utilities.timing._wait_random as wait_random_module
 from types import SimpleNamespace
 import pytest
@@ -35,10 +36,34 @@ def test_abstract_timing_action_probe():
 
     assert TimingActionProbe().execute() is None
 
+def test_wait_rejects_negative_duration():
+    with pytest.raises(ValueError, match = "Duration cannot be negative."): Timing().wait(-0.01)
+
+def test_wait_executes_sub_margin_duration(): assert Timing().wait(0.001) is None
+
+def test_wait_stops_when_the_kill_switch_is_already_set():
+    KILL_SWITCH_EVENT.set()
+    try: _Wait(1).execute()
+    finally: KILL_SWITCH_EVENT.clear()
+
+def test_wait_stops_when_cancelled_during_the_final_spin(monkeypatch):
+    class StopAfterFirstSpinCheck:
+        def __init__(self): self.checks = 0
+
+        def is_set(self):
+            self.checks += 1
+            return self.checks == 2
+
+    stop_event = StopAfterFirstSpinCheck()
+    clock_values = iter((0, 0, 0.0005))
+    monkeypatch.setattr(wait_module.time, "perf_counter", lambda: next(clock_values))
+    assert _Wait(0.001).execute(stop_event = stop_event) is None
+    assert stop_event.checks == 2
+
 def test_wait_is_interrupted_promptly_by_the_kill_switch_instead_of_running_the_full_duration():
     threading.Timer(0.25, KILL_SWITCH_EVENT.set).start()
     start_time = time.perf_counter()
-    _Wait(5).execute()
+    Timing().wait(5)
     elapsed = time.perf_counter() - start_time
     KILL_SWITCH_EVENT.clear()
     assert elapsed < 1

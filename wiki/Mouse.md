@@ -50,7 +50,7 @@ Simulates a physical click (DOWN and UP events) with a customizable, randomized 
 
 - **`x` (`Optional[int]`)**
 - **`y` (`Optional[int]`)**
-- **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+- **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
 - **`clicks` (`int`):** Must be ≥ 0.
 
 **Returns:**
@@ -80,7 +80,7 @@ A convenient wrapper around `click()` that forces `clicks = 2`.
 
 - **`x` (`Optional[int]`)**
 - **`y` (`Optional[int]`)**
-- **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+- **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
 
 **Returns:**
 
@@ -158,7 +158,7 @@ Sends the physical DOWN signal for the mouse button without releasing it.
 
 - **`x` (`Optional[int]`)**
 - **`y` (`Optional[int]`)**
-- **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+- **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
 
 **Returns:**
 
@@ -187,7 +187,7 @@ Sends the physical UP signal for the mouse button.
 
 - **`x` (`Optional[int]`)**
 - **`y` (`Optional[int]`)**
-- **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+- **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
 
 **Returns:**
 
@@ -215,7 +215,7 @@ Moves to the start coordinates, holds the specified button, waits, smoothly move
 - **`start_y` (`int`)**
 - **`end_x` (`int`)**
 - **`end_y` (`int`)**
-- **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+- **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
 
 **Returns:**
 
@@ -243,7 +243,7 @@ Sends discrete mouse wheel signals to scroll the active window.
 **Arguments:**
 
 - **`amount` (`int`):** Must be ≥ 0.
-- **`direction` (`str`):** Valid options: "up", "down", "left", "right". Matching is case-insensitive.
+- **`direction` (`ScrollDirection`):** Valid options are "up", "down", "left", or "right". Matching is case-insensitive.
 
 **Returns:**
 
@@ -268,10 +268,10 @@ Executes in a loop, scrolling step by step while periodically until either the `
 **Arguments:**
 
 - **`condition_function` (`Callable[[], bool]`)**
-- **`amount` (`int`)**
-- **`direction` (`str`):** Valid options: "up", "down", "left", "right". Matching is case-insensitive.
+- **`amount` (`int`):** Must be ≥ 0.
+- **`direction` (`ScrollDirection`):** Valid options are "up", "down", "left", or "right". Matching is case-insensitive.
 - **`timeout` (`float`):** Seconds. Must be ≥ 0.
-- **`poll_interval` (`float`)**
+- **`poll_interval` (`float`):** Seconds. Must be > 0.
 
 **Returns:**
 
@@ -334,7 +334,7 @@ Executes the wander logic until the `condition_function` is met or the `maximum_
 - **`region` (`Optional[tuple[int, int, int, int]]`):** Format: (left, top, right, bottom).
 - **`maximum_steps` (`Optional[int]`):** Must be ≥ 0.
 - **`timeout` (`float`):** Seconds. Must be ≥ 0.
-- **`poll_interval` (`float`)**
+- **`poll_interval` (`float`):** Seconds. Must be > 0.
 
 **Returns:**
 
@@ -424,11 +424,11 @@ Takes a micro-screenshot of the exact pixel the mouse is hovering over and extra
 
 **Arguments:**
 
-- **`format` (`str`):** Valid options: "rgb", "hexadecimal". Matching is case-insensitive.
+- **`format` (`ColorFormat`):** Valid options: "rgb", "hexadecimal". Matching is case-insensitive.
 
 **Returns:**
 
-**`tuple[int, int, int]` | `str`**
+**`tuple[int, int, int] | str`**
 
 **Example:**
 

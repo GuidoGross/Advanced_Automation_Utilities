@@ -1,3 +1,8 @@
+import os
+
+if os.name != "nt":
+    raise NotImplementedError("Advanced Automation Utilities is currently only supported on Windows.")
+
 from ..._kill_switch_event import trigger_kill_switch
 import ctypes
 from ctypes import wintypes
@@ -15,7 +20,6 @@ _WINDOW_MESSAGE_SYSTEM_KEY_DOWN = 0x0104
 _WINDOW_MESSAGE_KEY_UP = 0x0101
 _WINDOW_MESSAGE_SYSTEM_KEY_UP = 0x0105
 _WINDOWS_HOOK_KEYBOARD_LOW_LEVEL = 13
-
 _VIRTUAL_KEY_CODES = {
     "backspace":         0x08, "tab":               0x09, "clear":             0x0C,
     "enter":             0x0D, "shift":             0x10, "ctrl":              0x11,
@@ -65,8 +69,7 @@ _hook_ready_event = threading.Event()
 _kill_switch_enabled = False
 _kill_switch_key = 0
 _kill_switch_modifiers = []
-
-_user32 = ctypes.windll.user32
+_user32 = ctypes.WinDLL("user32", use_last_error = True)
 
 class _MouseInput(ctypes.Structure):
     _fields_ = (
@@ -187,6 +190,7 @@ def _unblock_key(key):
     if virtual_key_result:
         virtual_key_code, _ = virtual_key_result
         if virtual_key_code in _blocked_keys: _blocked_keys.remove(virtual_key_code)
+    _unhook_if_idle()
 
 def _enable_kill_switch(keys):
     global _kill_switch_enabled, _kill_switch_key, _kill_switch_modifiers
@@ -206,6 +210,7 @@ def _enable_kill_switch(keys):
 def _disable_kill_switch():
     global _kill_switch_enabled
     _kill_switch_enabled = False
+    _unhook_if_idle()
 
 def _get_virtual_key_code(key):
     key_lower = key.lower()
@@ -223,12 +228,18 @@ def _ensure_hook():
         _hook_thread = threading.Thread(target = _hook_worker, daemon = True)
         _hook_thread.start()
         _hook_ready_event.wait()
+        if not _hook_id:
+            raise OSError(ctypes.GetLastError(), "Failed to install low-level keyboard hook.")
 
 _HookProcedure = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM)
 _user32.SetWindowsHookExW.argtypes = [ctypes.c_int, _HookProcedure, wintypes.HINSTANCE, wintypes.DWORD]
 _user32.SetWindowsHookExW.restype = wintypes.HHOOK
 _user32.CallNextHookEx.argtypes = [wintypes.HHOOK, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM]
 _user32.CallNextHookEx.restype = wintypes.LPARAM
+_user32.UnhookWindowsHookEx.argtypes = [wintypes.HHOOK]
+_user32.UnhookWindowsHookEx.restype = wintypes.BOOL
+_user32.PostThreadMessageW.argtypes = [wintypes.DWORD, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+_user32.PostThreadMessageW.restype = wintypes.BOOL
 
 def _hook_worker():
     global _hook_id, _hook_function
@@ -256,7 +267,19 @@ def _hook_worker():
     _hook_function = _HookProcedure(_low_level_keyboard_handler)
     _hook_id = _user32.SetWindowsHookExW(_WINDOWS_HOOK_KEYBOARD_LOW_LEVEL, _hook_function, None, 0)
     _hook_ready_event.set()
+    if not _hook_id: return
     message = wintypes.MSG()
     while _user32.GetMessageW(ctypes.byref(message), None, 0, 0) > 0:
         _user32.TranslateMessage(ctypes.byref(message))
         _user32.DispatchMessageW(ctypes.byref(message))
+
+def _unhook_if_idle():
+    global _hook_id, _hook_function, _hook_thread
+    if not _blocked_keys and not _kill_switch_enabled and _hook_id:
+        _user32.UnhookWindowsHookEx(_hook_id)
+        if _hook_thread and _hook_thread.is_alive():
+            _user32.PostThreadMessageW(_hook_thread.native_id, 0x0012, 0, 0)
+            _hook_thread.join(timeout = 0.5)
+            _hook_thread = None
+        _hook_id = None
+        _hook_function = None

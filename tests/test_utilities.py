@@ -5,34 +5,22 @@ from advanced_automation_utilities._utilities import (
     _validate_file_exists,
     _apply_variation
 )
-import advanced_automation_utilities
-from pathlib import Path
 from types import SimpleNamespace
 from hypothesis import strategies, given
-import types
-import sys
 import pytest
 import math
 import re
 import os
 
-def test_package_import_guards_cover_unsupported_platform_and_dpi_failure(monkeypatch):
-    package_file = Path(advanced_automation_utilities.__file__)
-    header_code = "\n".join(package_file.read_text(encoding = "utf-8").splitlines()[:9])
-    fake_os_module = types.ModuleType("os")
-    fake_os_module.name = "posix"
-    monkeypatch.setitem(sys.modules, "os", fake_os_module)
-    with pytest.raises(NotImplementedError, match = "only supported on Windows"):
-        exec(compile(header_code, str(package_file), "exec"), {})
-    fake_os_module.name = "nt"
-    fake_ctypes_module = types.ModuleType("ctypes")
-    fake_ctypes_module.windll = SimpleNamespace(
-        user32 = SimpleNamespace(
-            SetProcessDPIAware = lambda: (_ for _ in ()).throw(RuntimeError("no DPI API"))
-        )
+def test_screen_dpi_awareness_is_marked_initialized_when_api_fails(monkeypatch):
+    from advanced_automation_utilities.backend.windows import _screen
+    monkeypatch.setattr(_screen, "_dpi_initialized", False)
+    failing_user32 = SimpleNamespace(
+        SetProcessDPIAware = lambda: (_ for _ in ()).throw(RuntimeError("no DPI API"))
     )
-    monkeypatch.setitem(sys.modules, "ctypes", fake_ctypes_module)
-    exec(compile(header_code, str(package_file), "exec"), {})
+    monkeypatch.setattr(_screen, "_user32", failing_user32)
+    _screen._ensure_dpi_aware()
+    assert _screen._dpi_initialized is True
 
 @given(
     minimum = strategies.floats(allow_nan = False),

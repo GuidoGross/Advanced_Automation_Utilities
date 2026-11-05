@@ -1,0 +1,127 @@
+from tui_utilities import decimal_format, header, print
+from pathlib import Path
+import argparse
+import os
+import re
+import subprocess
+import sys
+import time
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+HYPOTHESIS_PROFILES = ("development", "pre_commit", "post_commit")
+TEST_FILES_BY_MODULE = {
+    "asynchrony": ("tests/test_asynchrony.py",),
+    "keyboard": ("tests/test_keyboard.py",),
+    "mouse": ("tests/test_mouse.py",),
+    "screen": ("tests/test_screen.py",),
+    "sound": ("tests/test_sound.py",),
+    "system": ("tests/test_system.py",),
+    "timing": ("tests/test_timing.py",),
+    "utilities": ("tests/test_utilities.py",),
+    "windows_backend": ("tests/test_windows_backend.py",)
+}
+QUEUEABLE_TEST_MODULES = ("asynchrony", "keyboard", "mouse", "sound", "system")
+COMMON_MODULE_TEST_MODULES = (
+    "asynchrony", "keyboard", "mouse", "screen", "sound", "system", "timing", "utilities"
+)
+
+def main():
+    start_time = time.perf_counter()
+    header("Unit Tests")
+    parser = argparse.ArgumentParser(description = "Run unit tests affected by changed files.")
+    parser.add_argument("--hypothesis-profile", choices = HYPOTHESIS_PROFILES, default = "development")
+    parser.add_argument("--changed-files", nargs = "*", default = [])
+    arguments = parser.parse_args()
+    all_test_files = sorted(
+        str(test_file.relative_to(PROJECT_ROOT))
+        for test_file in (PROJECT_ROOT / "tests").glob("test_*.py")
+    )
+    selected_tests, run_all_tests = _select_tests(arguments.changed_files)
+    if run_all_tests: selected_tests = set(all_test_files)
+    ordered_test_files = sorted(selected_tests)
+    if run_all_tests:
+        print(
+            f" Running all unit tests with the {arguments.hypothesis_profile} profile.",
+            bold = True
+        )
+    elif ordered_test_files:
+        print(
+            f" Running selected unit tests with the {arguments.hypothesis_profile} profile:",
+            bold = True
+        )
+        for test_file in ordered_test_files: print(f"    - {test_file}")
+    else:
+        print("No related unit tests were selected.", bold = True)
+        return 0
+    environment = os.environ.copy()
+    environment["HYPOTHESIS_PROFILE"] = arguments.hypothesis_profile
+    sys.stdout.flush()
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", *ordered_test_files],
+        cwd = PROJECT_ROOT,
+        env = environment,
+        check = False
+    )
+    if result.returncode:
+        print(
+            f"Unit tests failed with exit code: {result.returncode}", color = "#ff0000", bold = True
+        )
+        return result.returncode
+    duration = (time.perf_counter() - start_time) * 1000
+    print([
+        ("Unit tests completed successfully in:", {"bold": True}),
+        (f" {decimal_format(round(duration))}ms", {})
+    ], color = "#00ff00")
+    return 0
+
+def _select_tests(changed_files):
+    all_test_files = {
+        str(test_file.relative_to(PROJECT_ROOT))
+        for test_file in (PROJECT_ROOT / "tests").glob("test_*.py")
+    }
+    selected_tests = set()
+    for changed_file in changed_files:
+        normalized_path = changed_file.replace("\\", "/").lstrip("./")
+        test_match = re.fullmatch(r"tests/(test_[^/]+\.py)", normalized_path)
+        if test_match:
+            test_path = f"tests/{test_match.group(1)}"
+            if (PROJECT_ROOT / test_path).is_file():
+                selected_tests.add(test_path)
+                continue
+            return all_test_files, True
+        if normalized_path in {"tests/conftest.py", "scripts/run_tests.py"}: return all_test_files, True
+        module_match = re.match(
+            r"advanced_automation_utilities/(keyboard|mouse|screen|sound|system|timing)/",
+            normalized_path
+        )
+        if module_match:
+            _add_module_tests(selected_tests, (module_match.group(1),))
+            continue
+        backend_match = re.fullmatch(
+            r"advanced_automation_utilities/backend/windows/_(keyboard|mouse|screen|sound|system)\.py",
+            normalized_path
+        )
+        if backend_match:
+            backend_module = backend_match.group(1)
+            _add_module_tests(selected_tests, (backend_module, "windows_backend"))
+            if backend_module == "keyboard": _add_module_tests(selected_tests, ("system",))
+            continue
+        if re.fullmatch(r"advanced_automation_utilities/_(queueable_controller|asynchronous_context|task)\.py", normalized_path):
+            _add_module_tests(selected_tests, QUEUEABLE_TEST_MODULES)
+            continue
+        if normalized_path == "advanced_automation_utilities/_kill_switch_event.py":
+            _add_module_tests(
+                selected_tests,
+                ("asynchrony", "keyboard", "mouse", "sound", "system", "timing", "windows_backend")
+            )
+            continue
+        if normalized_path in {"advanced_automation_utilities/_utilities.py", "advanced_automation_utilities/_typing.py", "advanced_automation_utilities/exceptions.py", "advanced_automation_utilities/__init__.py"}:
+            _add_module_tests(selected_tests, COMMON_MODULE_TEST_MODULES)
+            continue
+        return all_test_files, True
+    return selected_tests or all_test_files, not selected_tests
+
+def _add_module_tests(selected_tests, module_names):
+    for module_name in module_names: selected_tests.update(TEST_FILES_BY_MODULE[module_name])
+
+if __name__ == "__main__": raise SystemExit(main())

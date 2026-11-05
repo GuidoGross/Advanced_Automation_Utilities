@@ -120,6 +120,14 @@ A decorator to automatically measure and print the execution time of any functio
 
 Place this above your function definitions to measure their execution time.
 
+**Arguments:**
+
+- **`function` (`Callable`)**
+
+**Returns:**
+
+**`Callable`**
+
 **Example:**
 
 ```python

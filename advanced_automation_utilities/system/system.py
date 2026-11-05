@@ -18,6 +18,8 @@ from typing import Self
 
 class System(_QueueableController):
     """
+    **`System`:** Controls Windows processes, windows, clipboard, and power operations.
+
     **Description:**
 
     High-level operating system actions and process management. This module provides a robust interface to manage the Windows clipboard, window states, process termination, and power options like sleeping, hibernating, and system reboots.

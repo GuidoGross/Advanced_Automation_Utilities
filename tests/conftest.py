@@ -17,8 +17,8 @@ import advanced_automation_utilities.system._focus_window as _focus_window_modul
 import advanced_automation_utilities.system._resize_window as _resize_window_module
 import advanced_automation_utilities.system._move_window as _move_window_module
 import advanced_automation_utilities.system._close_window as _close_window_module
-import os
 from hypothesis import settings, HealthCheck
+import os
 import pytest
 
 settings.register_profile(

@@ -14,6 +14,8 @@ from typing import Optional, Self, Callable
 
 class Mouse(_QueueableController):
     """
+    **`Mouse`:** Controls mouse movement, clicks, scrolling, and cursor wandering.
+
     **Description:**
 
     Native pointer manipulation governed by Bézier-curve physics to simulate authentic human behavior. Perform smooth movements, random wandering, and complex dragging operations while remaining undetected by simple anti-bot mechanisms.
@@ -78,7 +80,7 @@ class Mouse(_QueueableController):
 
         - **`x` (`Optional[int]`)**
         - **`y` (`Optional[int]`)**
-        - **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+        - **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
 
         **Returns:**
 
@@ -110,7 +112,7 @@ class Mouse(_QueueableController):
 
         - **`x` (`Optional[int]`)**
         - **`y` (`Optional[int]`)**
-        - **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+        - **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
 
         **Returns:**
 
@@ -144,7 +146,7 @@ class Mouse(_QueueableController):
 
         - **`x` (`Optional[int]`)**
         - **`y` (`Optional[int]`)**
-        - **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+        - **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
         - **`clicks` (`int`):** Must be ≥ 0.
 
         **Returns:**
@@ -179,7 +181,7 @@ class Mouse(_QueueableController):
 
         - **`x` (`Optional[int]`)**
         - **`y` (`Optional[int]`)**
-        - **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+        - **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
 
         **Returns:**
 
@@ -244,7 +246,7 @@ class Mouse(_QueueableController):
         **Example:**
 
         ```python
-        Mouse().middle_click(x = 100, y = 200, clicks = 1)
+        Mouse().middle_click(x = 250, y = 500, clicks = 1)
         ```
         """
         return self.click(x = x, y = y, button = "middle", clicks = clicks)
@@ -265,7 +267,7 @@ class Mouse(_QueueableController):
         - **`start_y` (`int`)**
         - **`end_x` (`int`)**
         - **`end_y` (`int`)**
-        - **`button` (`str`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
+        - **`button` (`MouseButton`):** Valid options: "left", "right", "middle". Matching is case-insensitive.
 
         **Returns:**
 
@@ -303,7 +305,7 @@ class Mouse(_QueueableController):
         **Arguments:**
 
         - **`amount` (`int`):** Must be ≥ 0.
-        - **`direction` (`str`):** Valid options are "up", "down", "left", or "right". Matching is case-insensitive.
+        - **`direction` (`ScrollDirection`):** Valid options are "up", "down", "left", or "right". Matching is case-insensitive.
 
         **Returns:**
 
@@ -338,7 +340,7 @@ class Mouse(_QueueableController):
 
         - **`condition_function` (`Callable[[], bool]`)**
         - **`amount` (`int`):** Must be ≥ 0.
-        - **`direction` (`str`):** Valid options are "up", "down", "left", or "right". Matching is case-insensitive.
+        - **`direction` (`ScrollDirection`):** Valid options are "up", "down", "left", or "right". Matching is case-insensitive.
         - **`timeout` (`float`):** Seconds. Must be ≥ 0.
         - **`poll_interval` (`float`):** Seconds. Must be > 0.
 

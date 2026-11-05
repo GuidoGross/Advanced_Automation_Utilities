@@ -4,6 +4,8 @@ from dataclasses import dataclass
 @dataclass(frozen = True)
 class KeyboardPhysics:
     """
+    **`KeyboardPhysics`:** Configures keyboard timing and typing behavior.
+
     **Description:**
 
     Configuration class that defines the timing characteristics

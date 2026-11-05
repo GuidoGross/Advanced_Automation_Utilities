@@ -32,10 +32,11 @@ Because every controller is queueable, they all inherit basic timing capabilitie
 
 ### **`wait()`**
 
+Pauses execution for an exact duration.
+
 **Description:**
 
-Pauses execution for an exact amount of seconds.
-Can be chained and queued asynchronously.
+Pauses execution for an exact amount of seconds. Can be chained and queued asynchronously.
 
 **Arguments:**
 
@@ -53,10 +54,11 @@ with mouse.asynchronous() as mouse_task: mouse.wait(duration = 2.5)
 
 ### **`wait_random()`**
 
+Pauses execution for a random duration within two limits.
+
 **Description:**
 
-Pauses execution for a random duration between two limits.
-Can be chained and queued asynchronously.
+Pauses execution for a random duration between two limits. Can be chained and queued asynchronously.
 
 **Arguments:**
 
@@ -76,10 +78,11 @@ with mouse.asynchronous() as mouse_task:
 
 ### **`wait_until()`**
 
+Pauses execution until a condition evaluates to True.
+
 **Description:**
 
-Pauses execution until a given function or lambda condition evaluates to True.
-Can be chained and queued asynchronously.
+Pauses execution until a given function or lambda condition evaluates to True. Can be chained and queued asynchronously.
 
 **Arguments:**
 
@@ -108,9 +111,11 @@ When you use the `asynchronous()` context manager, it returns a `Task` object. T
 
 ### **`Task().wait()`**
 
+Blocks until the task completes or is cancelled.
+
 **Description:**
 
-Blocks the calling thread until the task is complete or cancelled.
+Waits for every queued action to finish or for cancellation to stop the sequence. If an action raises an exception, the same exception is raised in the thread calling this method.
 
 **Returns:**
 
@@ -123,11 +128,13 @@ with mouse.asynchronous() as mouse_task: mouse.move(x = 500, y = 500)
 mouse_task.wait()
 ```
 
-### **`Task.cancel()`**
+### **`Task().cancel()`**
+
+Cancels a task that has not started or is still running.
 
 **Description:**
 
-Cancels the task if it hasn't started or is currently running.
+Requests cancellation of the queued sequence. Actions that have not started are skipped, and a running action receives the task's cancellation event so it can stop cooperatively.
 
 **Returns:**
 
@@ -146,11 +153,13 @@ image_found = screen.locate_image(
 if image_found: mouse_task.cancel()
 ```
 
-### **`Task.is_done`**
+### **`Task().is_done`**
+
+Checks whether the task is complete or cancelled.
 
 **Description:**
 
-Checks if the task is complete or cancelled.
+Returns True after the queued sequence has stopped, whether it completed, was cancelled, or ended because an action raised an exception.
 
 **Returns:**
 

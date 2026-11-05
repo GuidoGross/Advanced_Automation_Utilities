@@ -5,6 +5,8 @@ from typing import Callable
 
 class Timing:
     """
+    **`Timing`:** Provides precise waits and condition-based timing operations.
+
     **Description:**
 
     Precise delays, chronometers, and condition-based execution flow. Use this module to introduce smart waits that continuously poll for conditions, simulate human-like random pauses, or precisely benchmark the execution time of your functions.

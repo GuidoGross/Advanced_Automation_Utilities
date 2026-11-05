@@ -12,7 +12,8 @@ def _validate_between_range(minimum = 0, maximum = math.inf, **kwargs):
         if not (minimum <= value <= maximum):
             formatted_name = name.replace("_", " ").capitalize()
             match (minimum, maximum):
-                case (0, math.inf): raise ValueError(f"{formatted_name} cannot be negative.")
+                case (0, math.inf):
+                    raise ValueError(f"{formatted_name} cannot be negative.")
                 case (1, math.inf):
                     raise ValueError(f"{formatted_name} must be greater than or equal to 1.")
                 case (_, math.inf):

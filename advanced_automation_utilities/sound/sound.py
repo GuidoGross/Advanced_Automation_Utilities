@@ -8,6 +8,8 @@ from typing import Self
 
 class Sound(_QueueableController):
     """
+    **`Sound`:** Plays audio, triggers system sounds, and synthesizes speech.
+
     **Description:**
 
     Audio playback and text-to-speech features. Easily integrate audible alerts using motherboard beeps, play local audio files, trigger native Windows notification sounds, or use the built-in Text-To-Speech engine without external dependencies.
@@ -59,7 +61,7 @@ class Sound(_QueueableController):
 
         **Arguments:**
 
-        - **`sound_type` (`str`):** Valid options: "info", "warning", "error", "question", "ok". Matching is case-insensitive.
+        - **`sound_type` (`SystemSound`):** Valid options: "info", "warning", "error", "question", "ok". Matching is case-insensitive.
 
         **Returns:**
 
@@ -68,7 +70,7 @@ class Sound(_QueueableController):
         **Example:**
 
         ```python
-        Sound().play_system_sound(sound = "warning")
+        Sound().play_system_sound(sound_type = "warning")
         ```
         """
         return self._execute_or_queue(_PlaySystemSound(sound_type = sound_type))
@@ -118,9 +120,5 @@ class Sound(_QueueableController):
         ```python
         Sound().speak(text = "Automation task completed successfully.")
         ```
-
-        ### **System Utilities (system)**
-
-        **High-level operating system actions and process management:**
         """
         return self._execute_or_queue(_Speak(text = text))

@@ -21,16 +21,23 @@ repos:
           - github.com/wasilibs/go-shellcheck/cmd/shellcheck@v0.11.1
   - repo: local
     hooks:
+      - id: synchronize_documentation
+        name: Synchronize documentation
+        entry: python scripts/synchronize_documentation.py
+        language: system
+        files: ^(advanced_automation_utilities/|README\.md$|wiki/|pyproject\.toml$)
+        pass_filenames: false
+        stages: [pre-commit]
       - id: run_unit_tests
         name: Run unit tests
-        entry: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/run_tests.ps1 -HypothesisProfile pre_commit
+        entry: python scripts/run_tests.py --hypothesis-profile pre_commit --changed-files
         language: system
-        files: ^(advanced_automation_utilities/|tests/|pyproject\.toml$|\.github/workflows/unit_tests\.yml$|README\.md$|\.pre-commit-config\.yaml$)
+        files: ^(advanced_automation_utilities/|tests/|scripts/|pyproject\.toml$|\.github/workflows/unit_tests\.yml$|README\.md$|\.pre-commit-config\.yaml$)
         pass_filenames: true
         stages: [pre-commit]
       - id: delete-temporary-folders
         name: Delete temporary folders
-        entry: powershell.exe -NoProfile -ExecutionPolicy Bypass -File delete_temporary_folders.ps1
+        entry: python scripts/delete_temporary_folders.py
         language: system
         pass_filenames: false
         always_run: true

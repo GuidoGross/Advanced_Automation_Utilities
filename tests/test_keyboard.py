@@ -67,7 +67,7 @@ def test_abstract_keyboard_action_probe():
 
 def test_keyboard_physics_is_immutable():
     physics = KeyboardPhysics(typing_error_chance = 0.05)
-    with pytest.raises(FrozenInstanceError): physics.typing_error_chance = 1
+    with pytest.raises(FrozenInstanceError): setattr(physics, "typing_error_chance", 1)
 
 def test_virtual_key_scan_failure_is_reported_as_none_not_a_bogus_code():
     unmappable_character = "\U0001F600"
