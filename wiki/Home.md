@@ -42,11 +42,10 @@
 
 ### **Optional dependencies**
 
-- **`dev`:**
-  - `hypothesis >= 6.47.4`
-  - `pre-commit >= 3.2.0`
-  - `pytest >= 7.2.0`
-  - `pytest-cov >= 6.0.0`
+- `hypothesis >= 6.47.4`
+- `pre-commit >= 3.2.0`
+- `pytest >= 7.2.0`
+- `pytest-cov >= 6.0.0`
 
 ### **Build system**
 

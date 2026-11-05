@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0
       - name: Download change context
         if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: release-check-context
           run-id: ${{github.event.workflow_run.id}}
@@ -68,47 +68,40 @@ jobs:
                   ].includes(file)
               }
             ].filter(workflow => changedFiles.some(workflow.matches));
-            const deadline = Date.now() + 30 * 60 * 1000;
             if (workflows.length === 0) {
               core.info("Neither smoke test nor unit tests applies to these changes.");
               core.setOutput("passed", "true");
               return;
             }
-            while (Date.now() < deadline) {
-              let allSucceeded = true;
-              for (const workflowId of workflows) {
-                const {data} = await github.rest.actions.listWorkflowRuns({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  workflow_id: workflowId.id,
-                  head_sha: targetSha,
-                  branch: "main",
-                  per_page: 100
-                });
-                const matchingRuns = data.workflow_runs
-                  .filter(run => run.head_sha === targetSha && ["push", "workflow_dispatch"].includes(run.event))
-                  .sort((left, right) => right.run_number - left.run_number);
-                if (matchingRuns.length === 0 || matchingRuns[0].status !== "completed") {
-                  allSucceeded = false;
-                  continue;
-                }
-                if (matchingRuns[0].conclusion !== "success") {
-                  core.info(`${workflowId.id} concluded with ${matchingRuns[0].conclusion}.`);
-                  core.setOutput("passed", "false");
-                  return;
-                }
-              }
-              if (allSucceeded) {
-                core.setOutput("passed", "true");
+            for (const workflowId of workflows) {
+              const {data} = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflowId.id,
+                head_sha: targetSha,
+                branch: "main",
+                per_page: 100
+              });
+              const matchingRuns = data.workflow_runs
+                .filter(run => run.head_sha === targetSha && ["push", "workflow_dispatch"].includes(run.event))
+                .sort((left, right) => right.run_number - left.run_number);
+              if (matchingRuns.length === 0 || matchingRuns[0].status !== "completed") {
+                core.info(`${workflowId.id} has not completed for ${targetSha};
+                waiting for its completion event.`);
+                core.setOutput("passed", "false");
                 return;
               }
-              await new Promise(resolve => setTimeout(resolve, 10000));
+              if (matchingRuns[0].conclusion !== "success") {
+                core.info(`${workflowId.id} concluded with ${matchingRuns[0].conclusion}.`);
+                core.setOutput("passed", "false");
+                return;
+              }
             }
-            throw new Error(`Timed out waiting for required checks on ${targetSha}.`);
+            core.setOutput("passed", "true");
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
       - name: Read package version
         id: version
         if: steps.checks.outputs.passed == 'true'
@@ -136,7 +129,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
       - name: Check whether this version is already published
         id: version
         run: |

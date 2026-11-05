@@ -7,6 +7,7 @@ on:
     branches: [main]
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
@@ -14,18 +15,39 @@ jobs:
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     outputs:
+      published: ${{steps.publication.outputs.published}}
       version: ${{steps.version.outputs.version}}
     steps:
+      - name: Confirm the Publish job succeeded
+        id: publication
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const {data} = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+              per_page: 100
+            });
+            const publishJob = data.jobs.find(job => job.name === "publish");
+            const published = publishJob?.conclusion === "success";
+            if (!published) {
+              core.info(`Publish job conclusion: ${publishJob?.conclusion ?? "not found"}.`);
+            }
+            core.setOutput("published", String(published));
       - name: Check out repository
+        if: steps.publication.outputs.published == 'true'
         uses: actions/checkout@v7
         with:
           ref: ${{github.event.workflow_run.head_sha || github.sha}}
           fetch-depth: 0
       - name: Set up Python
+        if: steps.publication.outputs.published == 'true'
         uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
       - name: Read package version
+        if: steps.publication.outputs.published == 'true'
         id: version
         run: |
           python - <<'PY'
@@ -38,7 +60,7 @@ jobs:
           PY
   tag:
     needs: verify
-    if: needs.verify.result == 'success'
+    if: needs.verify.outputs.published == 'true'
     runs-on: ubuntu-24.04
     concurrency:
       group: tag-release-${{needs.verify.outputs.version}}

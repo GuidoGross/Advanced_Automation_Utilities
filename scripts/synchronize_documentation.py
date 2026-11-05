@@ -95,16 +95,21 @@ def main():
             )
             _print_changed_files(changed_files_paths)
             return 1
-        message = "All docstrings and wiki files are already synchronized."
+        print("All docstrings and wiki files are already synchronized.", color = "#00ff00", bold = True)
+        return 0
     else:
-        if changed_files_paths:
-            print(f"Synchronized {len(changed_files_paths)} files:", bold = True)
-            _print_changed_files(changed_files_paths)
-            message = "Documentation synchronization completed successfully in:"
-        else: message = "All docstrings and wiki files are already synchronized in:"
+        if not changed_files_paths:
+            print(
+                "All docstrings and wiki files are already synchronized.",
+                color = "#00ff00",
+                bold = True
+            )
+            return 0
+        print(f"Synchronized {len(changed_files_paths)} files:", bold = True)
+        _print_changed_files(changed_files_paths)
     duration = (time.perf_counter() - start_time) * 1000
     print([
-        (message, {"bold": True}),
+        ("Documentation synchronization completed successfully in:", {"bold": True}),
         (f" {decimal_format(round(duration))}ms", {})
     ], color = "#00ff00")
     return 0
@@ -299,9 +304,10 @@ def _render_dependency_sections(project, configuration, dependency_note):
     if dependency_note: lines.extend(["", *dependency_note])
     lines.extend(["", "### **Optional dependencies**", ""])
     optional_dependencies = project.get("optional-dependencies", {})
-    for group_name, dependencies in optional_dependencies.items():
-        lines.append(f"- **`{group_name}`:**")
-        lines.extend(f"  - `{dependency}`" for dependency in dependencies)
+    lines.extend(
+        f"- `{dependency}`"
+        for dependencies in optional_dependencies.values() for dependency in dependencies
+    )
     lines.extend(["", "### **Build system**", ""])
     build_requirements = configuration["build-system"].get("requires", [])
     lines.extend(f"- `{requirement}`" for requirement in build_requirements)

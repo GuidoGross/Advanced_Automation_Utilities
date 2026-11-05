@@ -36,7 +36,7 @@ jobs:
             [System.Text.UTF8Encoding]::new($false)
           )
       - name: Upload release check context
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-check-context
           path: ${{runner.temp}}/release-check-context/changed-files.txt
@@ -45,8 +45,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.15-dev"
-          allow-prereleases: true
+          python-version: "3.15"
       - name: Build package
         shell: pwsh
         run: |
@@ -61,11 +60,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $wheels = @(Get-ChildItem -Path dist -Filter "*.whl")
           if ($wheels.Count -ne 1) {throw "Expected one wheel, found $($wheels.Count)."}
-          $is_prerelease = python -c "import sys; print(sys.version_info.releaselevel != 'final')"
-          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
-          if ($is_prerelease -eq "True") {
-            python -m pip install --ignore-requires-python $wheels[0].FullName
-          } else {python -m pip install $wheels[0].FullName}
+          python -m pip install $wheels[0].FullName
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
           Set-Location $env:RUNNER_TEMP
           python -c "import sys

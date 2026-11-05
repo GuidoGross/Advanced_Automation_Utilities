@@ -39,7 +39,7 @@ jobs:
             [System.Text.UTF8Encoding]::new($false)
           )
       - name: Upload release check context
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-check-context
           path: ${{runner.temp}}/release-check-context/changed-files.txt
@@ -48,18 +48,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.15-dev"
-          allow-prereleases: true
+          python-version: "3.15"
       - name: Install project and development dependencies
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           python -m pip install --upgrade pip
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
-          $is_prerelease = python -c "import sys; print(sys.version_info.releaselevel != 'final')"
-          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
-          if ($is_prerelease -eq "True") {python -m pip install --ignore-requires-python -e ".[dev]"}
-          else {python -m pip install -e ".[dev]"}
+          python -m pip install -e ".[dev]"
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
       - name: Run unit tests with 1.000 Hypothesis examples
         shell: pwsh
