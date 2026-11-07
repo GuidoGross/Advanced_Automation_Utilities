@@ -29,7 +29,9 @@ jobs:
               run_id: context.payload.workflow_run.id,
               per_page: 100
             });
-            const publishJob = data.jobs.find(job => job.name === "publish");
+            const publishJob = data.jobs.find(
+              job => ["publish", "Publish to PyPI"].includes(job.name)
+            );
             const published = publishJob?.conclusion === "success";
             if (!published) {
               core.info(`Publish job conclusion: ${publishJob?.conclusion ?? "not found"}.`);
