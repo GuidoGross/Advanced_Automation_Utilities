@@ -95,7 +95,11 @@ def _select_tests(changed_files):
             normalized_path
         )
         if module_match:
-            _add_module_tests(selected_tests, (module_match.group(1),))
+            module_name = module_match.group(1)
+            _add_module_tests(selected_tests, (module_name,))
+            if module_name == "timing":
+                _add_module_tests(selected_tests, ("mouse", "keyboard", "asynchrony"))
+            elif module_name == "screen": _add_module_tests(selected_tests, ("mouse",))
             continue
         backend_match = re.fullmatch(
             r"advanced_automation_utilities/backend/windows/_(keyboard|mouse|screen|sound|system)\.py",
@@ -105,6 +109,7 @@ def _select_tests(changed_files):
             backend_module = backend_match.group(1)
             _add_module_tests(selected_tests, (backend_module, "windows_backend"))
             if backend_module == "keyboard": _add_module_tests(selected_tests, ("system",))
+            elif backend_module == "screen": _add_module_tests(selected_tests, ("mouse",))
             continue
         if normalized_path == "advanced_automation_utilities/backend/windows/_windows_backend_utilities.py":
             return all_test_files, True

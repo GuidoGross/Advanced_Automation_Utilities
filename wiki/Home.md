@@ -47,7 +47,7 @@
 > [!NOTE]
 > Standard library modules are used where possible; only external dependencies are listed.
 
-### **Setuptools**
+### **Setuptools version**
 
 Setuptools 77.0 or higher
 

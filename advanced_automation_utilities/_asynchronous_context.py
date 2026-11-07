@@ -9,6 +9,7 @@ class _AsynchronousContext:
         self._controller = controller
         self._task = Task()
         self._is_nested = False
+        self._initial_action_count = 0
 
     def __enter__(self):
         controller_id = id(self._controller)
@@ -19,10 +20,12 @@ class _AsynchronousContext:
         if queue_stack:
             self._is_nested = True
             self._task = task_stack[-1]
+            self._initial_action_count = len(queue_stack[-1])
             queue_stack.append(queue_stack[-1])
             task_stack.append(self._task)
         else:
             self._is_nested = False
+            self._initial_action_count = 0
             queue_stack.append([])
             task_stack.append(self._task)
         queues_map[controller_id] = queue_stack
@@ -47,6 +50,9 @@ class _AsynchronousContext:
             else: tasks_map.pop(controller_id, None)
             _ACTIVE_ASYNCHRONOUS_TASKS.set(tasks_map)
             if exc_type is not None:
+                if self._is_nested:
+                    del actions[self._initial_action_count:]
+                    return
                 actions.clear()
                 self._task._actions = []
                 self._task._exception = exc_val

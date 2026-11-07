@@ -149,7 +149,7 @@ def _send_key(key, key_released = False):
         )
     input_array_type = _Input * len(inputs)
     input_array = input_array_type(*inputs)
-    if _user32.SendInput(len(inputs), ctypes.byref(input_array), ctypes.sizeof(_Input)) == 0:
+    if _user32.SendInput(len(inputs), ctypes.byref(input_array), ctypes.sizeof(_Input)) != len(inputs):
         raise ctypes.WinError(ctypes.get_last_error())
 
 def _send_unicode(text):

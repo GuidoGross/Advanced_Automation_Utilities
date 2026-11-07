@@ -318,7 +318,7 @@ def _render_dependency_sections(project, configuration, dependency_note):
     if dependency_note: lines.extend(["", *dependency_note])
     build_requirements = configuration["build-system"].get("requires", [])
     if build_requirements:
-        lines.extend(["", "### **Setuptools**", ""])
+        lines.extend(["", "### **Setuptools version**", ""])
         lines.extend(
             f"Setuptools {_minimum_requirement_version(requirement)}"
             for requirement in build_requirements

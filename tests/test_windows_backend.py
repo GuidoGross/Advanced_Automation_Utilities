@@ -41,7 +41,9 @@ class _MouseUser32:
         point = ctypes.cast(pointer, ctypes.POINTER(mouse_backend._Point)).contents
         point.x, point.y = self.cursor_position
 
-    def SetCursorPos(self, x, y): self.set_positions.append((x, y))
+    def SetCursorPos(self, x, y):
+        self.set_positions.append((x, y))
+        return 1
 
 def test_windows_backend_platform_guard_rejects_non_windows(monkeypatch):
     modules = ("_mouse", "_keyboard", "_screen", "_sound", "_system", "_windows_backend_utilities")
@@ -74,6 +76,11 @@ def test_screen_dpi_awareness_is_marked_initialized_when_api_fails(monkeypatch):
     monkeypatch.setattr(windows_backend_utilities, "_user32", failing_user32)
     windows_backend_utilities._ensure_dpi_aware()
     assert windows_backend_utilities._dpi_initialized is True
+
+def test_windows_input_struct_size():
+    expected_size = 40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 28
+    assert ctypes.sizeof(mouse_backend._Input) == expected_size
+    assert ctypes.sizeof(keyboard_backend._Input) == expected_size
 
 def test_mouse_backend_translates_every_supported_command(monkeypatch):
     user32 = _MouseUser32()
@@ -114,6 +121,12 @@ def test_mouse_send_input_error_raises_winerror(monkeypatch):
     monkeypatch.setattr(mouse_backend, "_user32", failing_user32)
     monkeypatch.setattr(mouse_backend.ctypes, "get_last_error", lambda: 5)
     with pytest.raises(OSError): mouse_backend._mouse_down("left")
+
+def test_mouse_set_cursor_position_error_raises_winerror(monkeypatch):
+    failing_user32 = SimpleNamespace(SetCursorPos = lambda x, y: 0)
+    monkeypatch.setattr(mouse_backend, "_user32", failing_user32)
+    monkeypatch.setattr(mouse_backend.ctypes, "get_last_error", lambda: 5)
+    with pytest.raises(OSError): mouse_backend._set_cursor_position(10, 20)
 
 class _KeyboardUser32:
     def __init__(self):
@@ -225,6 +238,8 @@ def test_keyboard_send_input_error_raises_winerror(monkeypatch):
     monkeypatch.setattr(keyboard_backend, "_user32", failing_user32)
     monkeypatch.setattr(keyboard_backend.ctypes, "get_last_error", lambda: 5)
     with pytest.raises(OSError): keyboard_backend._send_unicode("a")
+    monkeypatch.setattr(failing_user32, "SendInput", lambda count, pointer, size: count - 1)
+    with pytest.raises(OSError): keyboard_backend._send_key("a")
     monkeypatch.setattr(failing_user32, "SendInput", lambda count, pointer, size: 0)
     with pytest.raises(OSError): keyboard_backend._send_key("a")
     with pytest.raises(OSError): keyboard_backend._send_unicode("a")

@@ -103,15 +103,60 @@ def test_nested_asynchronous_contexts():
         def execute(self): execution_order.append(self.tag)
 
     with controller.asynchronous() as task_1:
-        controller._execute_or_queue(RecordAction("outer_1"))
+        controller._execute_or_queue(RecordAction("outer_action_1"))
         with controller.asynchronous() as task_2:
-            controller._execute_or_queue(RecordAction("inner_1"))
-            controller._execute_or_queue(RecordAction("inner_2"))
-        controller._execute_or_queue(RecordAction("outer_2"))
+            controller._execute_or_queue(RecordAction("inner_action_1"))
+            controller._execute_or_queue(RecordAction("inner_action_2"))
+        controller._execute_or_queue(RecordAction("outer_action_2"))
     assert task_1 is task_2
     completed = task_1.wait(timeout = 2)
     assert completed is True
-    assert execution_order == ["outer_1", "inner_1", "inner_2", "outer_2"]
+    assert execution_order == ["outer_action_1", "inner_action_1", "inner_action_2", "outer_action_2"]
+
+def test_nested_asynchronous_context_caught_exception_prunes_only_inner_actions():
+    controller = _QueueableController()
+    execution_order = []
+
+    class RecordAction:
+        def __init__(self, tag): self.tag = tag
+
+        def execute(self): execution_order.append(self.tag)
+
+    with controller.asynchronous() as task:
+        controller._execute_or_queue(RecordAction("outer_action_1"))
+        try:
+            with controller.asynchronous():
+                controller._execute_or_queue(RecordAction("inner_action_1"))
+                raise ValueError("inner failure")
+        except ValueError: pass
+        assert not task._done_event.is_set()
+        assert task._exception is None
+        controller._execute_or_queue(RecordAction("outer_action_2"))
+    assert task.wait(timeout = 2) is True
+    assert execution_order == ["outer_action_1", "outer_action_2"]
+
+def test_nested_asynchronous_context_uncaught_exception_cancels_all_actions():
+    controller = _QueueableController()
+    execution_order = []
+
+    class RecordAction:
+        def __init__(self, tag): self.tag = tag
+
+        def execute(self): execution_order.append(self.tag)
+
+    try:
+        with controller.asynchronous() as task:
+            controller._execute_or_queue(RecordAction("outer_action_1"))
+            with controller.asynchronous():
+                controller._execute_or_queue(RecordAction("inner_action_1"))
+                raise ValueError("uncaught failure")
+            controller._execute_or_queue(RecordAction("outer_action_2"))
+    except ValueError: pass
+    else: pytest.fail("exception should have propagated")
+    assert task._done_event.is_set()
+    assert isinstance(task._exception, ValueError)
+    assert not execution_order
+    with pytest.raises(ValueError, match = "uncaught failure"): task.wait()
 
 def test_asynchronous_context_exit_with_an_empty_stack():
     controller = _QueueableController()

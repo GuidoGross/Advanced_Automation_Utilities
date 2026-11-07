@@ -43,7 +43,7 @@ def _get_cursor_position():
 
 def _set_cursor_position(x, y):
     _ensure_dpi_aware()
-    _user32.SetCursorPos(int(x), int(y))
+    if not _user32.SetCursorPos(int(x), int(y)): raise ctypes.WinError(ctypes.get_last_error())
 
 def _send_mouse_input(flags, mouse_data = 0):
     input_item = _Input(
