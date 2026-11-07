@@ -1,3 +1,4 @@
+from ._utilities import _validate_between_range
 from typing import Any, Optional
 import weakref
 import threading
@@ -22,27 +23,34 @@ class Task:
         self.last_result: Any = None
         _ACTIVE_TASKS.add(self)
 
-    def wait(self) -> None:
+    def wait(self, timeout: Optional[float] = None) -> bool:
         """
-        **`Task().wait()`:** Blocks until the task completes or is cancelled.
+        **`Task().wait()`:** Blocks until the task completes, is cancelled, or timeout expires.
 
         **Description:**
 
-        Waits for every queued action to finish or for cancellation to stop the sequence. If an action raises an exception, the same exception is raised in the thread calling this method.
+        Waits for every queued action to finish, for cancellation to stop the sequence, or until timeout seconds elapse. If an action raises an exception, the same exception is raised in the thread calling this method.
+
+        **Arguments:**
+
+        - **`timeout` (`Optional[float]`):** Maximum seconds to wait. Must be ≥ 0.
 
         **Returns:**
 
-        **`None`**
+        **`bool`**
 
         **Example:**
 
         ```python
         with mouse.asynchronous() as mouse_task: mouse.move(x = 500, y = 500)
-        mouse_task.wait()
+        completed = mouse_task.wait(timeout = 5)
         ```
         """
-        self._done_event.wait()
-        if self._exception: raise self._exception
+        if timeout is not None: _validate_between_range(timeout = timeout)
+        completed = self._done_event.wait(timeout = timeout)
+        if self._exception:
+            raise self._exception
+        return completed
 
     def cancel(self) -> None:
         """

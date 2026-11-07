@@ -70,7 +70,7 @@ def main():
     duration = (time.perf_counter() - start_time) * 1000
     print([
         ("Unit tests completed successfully in:", {"bold": True}),
-        (f" {decimal_format(round(duration))}ms", {})
+        (f" {decimal_format(duration, decimals = 0)}ms", {})
     ], color = "#00ff00")
     return 0
 
@@ -106,6 +106,8 @@ def _select_tests(changed_files):
             _add_module_tests(selected_tests, (backend_module, "windows_backend"))
             if backend_module == "keyboard": _add_module_tests(selected_tests, ("system",))
             continue
+        if normalized_path == "advanced_automation_utilities/backend/windows/_windows_backend_utilities.py":
+            return all_test_files, True
         if re.fullmatch(r"advanced_automation_utilities/_(queueable_controller|asynchronous_context|task)\.py", normalized_path):
             _add_module_tests(selected_tests, QUEUEABLE_TEST_MODULES)
             continue

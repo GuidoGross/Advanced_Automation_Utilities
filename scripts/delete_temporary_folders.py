@@ -34,7 +34,8 @@ def main():
         return 1
     duration = (time.perf_counter() - start_time) * 1000
     print([
-        ("Folder cleanup completed in:", {"bold": True}), (f" {decimal_format(duration)}ms", {})
+        ("Folder cleanup completed in:", {"bold": True}),
+        (f" {decimal_format(duration, decimals = 0)}ms", {})
     ], color = "#00ff00")
     return 0
 

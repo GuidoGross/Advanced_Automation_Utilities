@@ -95,10 +95,23 @@ def test_an_empty_asynchronous_block_resolves_immediately():
 
 def test_nested_asynchronous_contexts():
     controller = _QueueableController()
+    execution_order = []
+
+    class RecordAction:
+        def __init__(self, tag): self.tag = tag
+
+        def execute(self): execution_order.append(self.tag)
+
     with controller.asynchronous() as task_1:
-        with controller.asynchronous() as task_2: controller._execute_or_queue(DummyAction(0.01))
-    task_2.wait()
-    task_1.wait()
+        controller._execute_or_queue(RecordAction("outer_1"))
+        with controller.asynchronous() as task_2:
+            controller._execute_or_queue(RecordAction("inner_1"))
+            controller._execute_or_queue(RecordAction("inner_2"))
+        controller._execute_or_queue(RecordAction("outer_2"))
+    assert task_1 is task_2
+    completed = task_1.wait(timeout = 2)
+    assert completed is True
+    assert execution_order == ["outer_1", "inner_1", "inner_2", "outer_2"]
 
 def test_asynchronous_context_exit_with_an_empty_stack():
     controller = _QueueableController()
@@ -262,12 +275,36 @@ def test_exception_while_a_task_is_already_dequeued_still_resolves_that_task(mon
 
 def test_an_exception_while_queueing_actions_skips_them_all_and_still_marks_the_task_done():
     controller = _QueueableController()
+    executed = []
+
+    class Dummy:
+        def execute(self): executed.append(True)
+
     try:
-        with controller.asynchronous() as task: raise ValueError("boom")
+        with controller.asynchronous() as task:
+            controller._execute_or_queue(Dummy())
+            raise ValueError("boom")
     except ValueError: pass
     else: pytest.fail("the ValueError raised inside the with block should have propagated")
     assert task._done_event.is_set()
-    assert task._exception is None
+    assert isinstance(task._exception, ValueError)
+    assert not executed
+    with pytest.raises(ValueError, match = "boom"): task.wait()
+
+def test_task_wait_with_timeout_returns_true_when_completed():
+    controller = _QueueableController()
+    with controller.asynchronous() as task: controller.wait(0.01)
+    assert task.wait(timeout = 2) is True
+
+def test_task_wait_with_timeout_returns_false_when_timed_out():
+    controller = _QueueableController()
+    with controller.asynchronous() as task: controller.wait(0.5)
+    assert task.wait(timeout = 0.01) is False
+    assert task.wait(timeout = 2) is True
+
+def test_task_wait_with_negative_timeout_raises_value_error():
+    task = Task()
+    with pytest.raises(ValueError, match = "(?i)timeout"): task.wait(timeout = -1)
 
 def test_worker_recovers_deterministically_from_the_exact_gap_the_outer_except_fixes(monkeypatch):
     class Tiny:

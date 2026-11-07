@@ -39,7 +39,7 @@ def main():
     duration = (time.perf_counter() - start_time) * 1000
     print([
         ("Coverage analysis completed successfully in:", {"bold": True}),
-        (f" {decimal_format(round(duration))}ms", {})
+        (f" {decimal_format(duration, decimals = 0)}ms", {})
     ], color = "#00ff00")
     return 0
 

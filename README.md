@@ -85,6 +85,19 @@ Windows 10 or higher.
     pip uninstall -y advanced_automation_utilities
     ```
 
+## **Import**
+
+```python
+from advanced_automation_utilities import (
+    Mouse, MouseInfo, MousePhysics,
+    Keyboard, KeyboardInfo, KeyboardPhysics,
+    Screen, ScreenInfo,
+    Timing, TimingInfo,
+    Sound,
+    System, SystemInfo
+)
+```
+
 ## **Features**
 
 The full documentation, API references, and examples are in the **[GitHub Wiki](https://github.com/GuidoGross/Advanced_Automation_Utilities/wiki)**.

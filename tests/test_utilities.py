@@ -5,22 +5,11 @@ from advanced_automation_utilities._utilities import (
     _validate_file_exists,
     _apply_variation
 )
-from types import SimpleNamespace
 from hypothesis import strategies, given
 import pytest
 import math
 import re
 import os
-
-def test_screen_dpi_awareness_is_marked_initialized_when_api_fails(monkeypatch):
-    from advanced_automation_utilities.backend.windows import _screen
-    monkeypatch.setattr(_screen, "_dpi_initialized", False)
-    failing_user32 = SimpleNamespace(
-        SetProcessDPIAware = lambda: (_ for _ in ()).throw(RuntimeError("no DPI API"))
-    )
-    monkeypatch.setattr(_screen, "_user32", failing_user32)
-    _screen._ensure_dpi_aware()
-    assert _screen._dpi_initialized is True
 
 @given(
     minimum = strategies.floats(allow_nan = False),

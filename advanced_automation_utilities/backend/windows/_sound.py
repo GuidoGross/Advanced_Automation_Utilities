@@ -1,7 +1,6 @@
-import os
+from ._windows_backend_utilities import _ensure_windows
 
-if os.name != "nt":
-    raise NotImplementedError("Advanced Automation Utilities is currently only supported on Windows.")
+_ensure_windows()
 
 import ctypes
 lazy import winsound

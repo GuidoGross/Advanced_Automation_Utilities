@@ -111,21 +111,25 @@ When you use the `asynchronous()` context manager, it returns a `Task` object. T
 
 ### **`Task().wait()`**
 
-Blocks until the task completes or is cancelled.
+Blocks until the task completes, is cancelled, or timeout expires.
 
 **Description:**
 
-Waits for every queued action to finish or for cancellation to stop the sequence. If an action raises an exception, the same exception is raised in the thread calling this method.
+Waits for every queued action to finish, for cancellation to stop the sequence, or until timeout seconds elapse. If an action raises an exception, the same exception is raised in the thread calling this method.
+
+**Arguments:**
+
+- **`timeout` (`Optional[float]`):** Maximum seconds to wait. Must be ≥ 0.
 
 **Returns:**
 
-**`None`**
+**`bool`**
 
 **Example:**
 
 ```python
 with mouse.asynchronous() as mouse_task: mouse.move(x = 500, y = 500)
-mouse_task.wait()
+completed = mouse_task.wait(timeout = 5)
 ```
 
 ### **`Task().cancel()`**

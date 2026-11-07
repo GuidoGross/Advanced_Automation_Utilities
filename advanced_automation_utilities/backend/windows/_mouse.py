@@ -1,7 +1,6 @@
-import os
+from ._windows_backend_utilities import _ensure_windows, _ensure_dpi_aware
 
-if os.name != "nt":
-    raise NotImplementedError("Advanced Automation Utilities is currently only supported on Windows.")
+_ensure_windows()
 
 import ctypes
 from ctypes import wintypes
@@ -37,11 +36,13 @@ class _Input(ctypes.Structure):
     _fields_ = (("type", wintypes.DWORD), ("_input_union", _InputUnion))
 
 def _get_cursor_position():
+    _ensure_dpi_aware()
     point = _Point()
     _user32.GetCursorPos(ctypes.byref(point))
     return point.x, point.y
 
 def _set_cursor_position(x, y):
+    _ensure_dpi_aware()
     _user32.SetCursorPos(int(x), int(y))
 
 def _send_mouse_input(flags, mouse_data = 0):
@@ -56,7 +57,8 @@ def _send_mouse_input(flags, mouse_data = 0):
             extra_information = None
         )
     )
-    _user32.SendInput(1, ctypes.byref(input_item), ctypes.sizeof(_Input))
+    if _user32.SendInput(1, ctypes.byref(input_item), ctypes.sizeof(_Input)) == 0:
+        raise ctypes.WinError(ctypes.get_last_error())
 
 _MOUSE_DOWN_FLAGS = {
     "left": _LEFT_BUTTON_DOWN,

@@ -10,7 +10,6 @@ on:
 permissions:
   actions: read
   contents: read
-  id-token: write
 
 jobs:
   verify:
@@ -115,9 +114,16 @@ jobs:
               output.write(f"version={version}\n")
           PY
   publish:
+    name: Publish to PyPI
     needs: verify
     if: needs.verify.outputs.passed == 'true'
     runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/advanced-automation-utilities
+    permissions:
+      contents: read
+      id-token: write
     concurrency:
       group: publish-${{needs.verify.outputs.version}}
       cancel-in-progress: false

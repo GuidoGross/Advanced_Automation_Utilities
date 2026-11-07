@@ -1,7 +1,6 @@
-import os
+from ._windows_backend_utilities import _ensure_windows, _ensure_dpi_aware
 
-if os.name != "nt":
-    raise NotImplementedError("Advanced Automation Utilities is currently only supported on Windows.")
+_ensure_windows()
 
 from ..._utilities import _validate_between_range
 import ctypes
@@ -18,14 +17,6 @@ _SPI_GETWORKAREA = 48
 
 _user32 = ctypes.WinDLL("user32", use_last_error = True)
 _gdi32 = ctypes.WinDLL("gdi32", use_last_error = True)
-_dpi_initialized = False
-
-def _ensure_dpi_aware():
-    global _dpi_initialized
-    if not _dpi_initialized:
-        try: _user32.SetProcessDPIAware()
-        except Exception: pass
-        _dpi_initialized = True
 
 def _get_screen_resolution():
     _ensure_dpi_aware()

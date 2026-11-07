@@ -1,7 +1,6 @@
-import os
+from ._windows_backend_utilities import _ensure_windows, _ensure_dpi_aware
 
-if os.name != "nt":
-    raise NotImplementedError("Advanced Automation Utilities is currently only supported on Windows.")
+_ensure_windows()
 
 from ...exceptions import WindowNotFoundError
 from ctypes import wintypes
@@ -188,11 +187,13 @@ def _focus_window(title):
         raise OSError(f"Could not focus the window with title \"{title}\".")
 
 def _resize_window(title, width, height):
+    _ensure_dpi_aware()
     window_handle = _find_window(title)
     if not _user32.SetWindowPos(window_handle, _HWND_TOP, 0, 0, int(width), int(height), _SWP_NOMOVE):
         raise OSError(f"Could not resize the window with title \"{title}\".")
 
 def _move_window(title, x, y):
+    _ensure_dpi_aware()
     window_handle = _find_window(title)
     if not _user32.SetWindowPos(window_handle, _HWND_TOP, int(x), int(y), 0, 0, _SWP_NOSIZE):
         raise OSError(f"Could not move the window with title \"{title}\".")

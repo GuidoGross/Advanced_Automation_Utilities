@@ -4,6 +4,7 @@ import advanced_automation_utilities.backend.windows._keyboard as keyboard_backe
 import advanced_automation_utilities.backend.windows._screen as screen_backend
 import advanced_automation_utilities.backend.windows._sound as sound_backend
 import advanced_automation_utilities.backend.windows._system as system_backend
+import advanced_automation_utilities.backend.windows._windows_backend_utilities as windows_backend_utilities
 from pathlib import Path
 from types import SimpleNamespace
 import ctypes
@@ -34,6 +35,7 @@ class _MouseUser32:
             )
             for item in inputs
         )
+        return count
 
     def GetCursorPos(self, pointer):
         point = ctypes.cast(pointer, ctypes.POINTER(mouse_backend._Point)).contents
@@ -42,22 +44,36 @@ class _MouseUser32:
     def SetCursorPos(self, x, y): self.set_positions.append((x, y))
 
 def test_windows_backend_platform_guard_rejects_non_windows(monkeypatch):
-    modules = ("_mouse", "_keyboard", "_screen", "_sound", "_system")
-    items = [
-        (
-            str(Path(f"advanced_automation_utilities/backend/windows/{module}.py").resolve()),
-            "\n".join(
-                Path(
-                    f"advanced_automation_utilities/backend/windows/{module}.py"
-                ).read_text(encoding = "utf-8").splitlines()[:5]
-            )
-        )
-        for module in modules
-    ]
+    modules = ("_mouse", "_keyboard", "_screen", "_sound", "_system", "_windows_backend_utilities")
+    items = []
+    for module in modules:
+        path = Path(f"advanced_automation_utilities/backend/windows/{module}.py")
+        lines = []
+        for line in path.read_text(encoding = "utf-8").splitlines():
+            lines.append(line)
+            if line.strip() == "_ensure_windows()": break
+        items.append((str(path.resolve()), "\n".join(lines)))
     monkeypatch.setattr(os, "name", "posix")
     for file_path, header in items:
         with pytest.raises(NotImplementedError, match = "only supported on Windows"):
-            exec(compile(header, file_path, "exec"), {})
+            exec(
+                compile(header, file_path, "exec"),
+                {"__package__": "advanced_automation_utilities.backend.windows"}
+            )
+
+def test_ensure_windows_raises_on_non_windows(monkeypatch):
+    monkeypatch.setattr(windows_backend_utilities.os, "name", "posix")
+    with pytest.raises(NotImplementedError, match = "only supported on Windows"):
+        windows_backend_utilities._ensure_windows()
+
+def test_screen_dpi_awareness_is_marked_initialized_when_api_fails(monkeypatch):
+    monkeypatch.setattr(windows_backend_utilities, "_dpi_initialized", False)
+    failing_user32 = SimpleNamespace(
+        SetProcessDPIAware = lambda: (_ for _ in ()).throw(RuntimeError("no DPI API"))
+    )
+    monkeypatch.setattr(windows_backend_utilities, "_user32", failing_user32)
+    windows_backend_utilities._ensure_dpi_aware()
+    assert windows_backend_utilities._dpi_initialized is True
 
 def test_mouse_backend_translates_every_supported_command(monkeypatch):
     user32 = _MouseUser32()
@@ -84,6 +100,21 @@ def test_mouse_backend_translates_every_supported_command(monkeypatch):
     ]
     assert user32.set_positions == [(3, -2)]
 
+def test_mouse_cursor_position_calls_ensure_dpi_aware(monkeypatch):
+    dpi_calls = []
+    monkeypatch.setattr(mouse_backend, "_ensure_dpi_aware", lambda: dpi_calls.append("dpi"))
+    user32 = _MouseUser32()
+    monkeypatch.setattr(mouse_backend, "_user32", user32)
+    mouse_backend._get_cursor_position()
+    mouse_backend._set_cursor_position(10, 20)
+    assert dpi_calls == ["dpi", "dpi"]
+
+def test_mouse_send_input_error_raises_winerror(monkeypatch):
+    failing_user32 = SimpleNamespace(SendInput = lambda count, pointer, size: 0)
+    monkeypatch.setattr(mouse_backend, "_user32", failing_user32)
+    monkeypatch.setattr(mouse_backend.ctypes, "get_last_error", lambda: 5)
+    with pytest.raises(OSError): mouse_backend._mouse_down("left")
+
 class _KeyboardUser32:
     def __init__(self):
         self.sent_inputs = []
@@ -108,6 +139,7 @@ class _KeyboardUser32:
             )
             for item in inputs
         )
+        return count
 
     def GetAsyncKeyState(self, key): return self.key_states.get(key, 0)
 
@@ -182,6 +214,21 @@ def test_keyboard_backend_sends_keys_unicode_and_tracks_state(monkeypatch):
     user32.key_states[42] = 0
     assert keyboard_backend._is_pressed("key") is False
 
+def test_keyboard_send_input_error_raises_winerror(monkeypatch):
+    calls = []
+
+    def fake_send_input(count, pointer, size):
+        calls.append(True)
+        return 1 if len(calls) == 1 else 0
+
+    failing_user32 = SimpleNamespace(SendInput = fake_send_input, VkKeyScanW = lambda code: 0x41)
+    monkeypatch.setattr(keyboard_backend, "_user32", failing_user32)
+    monkeypatch.setattr(keyboard_backend.ctypes, "get_last_error", lambda: 5)
+    with pytest.raises(OSError): keyboard_backend._send_unicode("a")
+    monkeypatch.setattr(failing_user32, "SendInput", lambda count, pointer, size: 0)
+    with pytest.raises(OSError): keyboard_backend._send_key("a")
+    with pytest.raises(OSError): keyboard_backend._send_unicode("a")
+
 def test_keyboard_backend_blocking_kill_switch_and_hook_lifecycle(monkeypatch):
     user32 = _KeyboardUser32()
     real_ensure_hook = keyboard_backend._ensure_hook
@@ -248,8 +295,10 @@ def test_keyboard_backend_blocking_kill_switch_and_hook_lifecycle(monkeypatch):
     assert (event.clear_calls, event.wait_calls) == (1, 1)
     monkeypatch.setattr(keyboard_backend, "_hook_thread", None)
     monkeypatch.setattr(keyboard_backend, "_hook_id", 0)
-    with pytest.raises(OSError, match = "Failed to install low-level keyboard hook"):
+    monkeypatch.setattr(keyboard_backend, "_hook_error", 1460)
+    with pytest.raises(OSError, match = "Failed to install low-level keyboard hook") as exc_info:
         keyboard_backend._ensure_hook()
+    assert exc_info.value.args[0] == 1460
 
     class LiveThread:
         def is_alive(self): return True
@@ -257,6 +306,19 @@ def test_keyboard_backend_blocking_kill_switch_and_hook_lifecycle(monkeypatch):
     monkeypatch.setattr(keyboard_backend, "_hook_thread", LiveThread())
     keyboard_backend._ensure_hook()
     assert (event.clear_calls, event.wait_calls) == (2, 2)
+
+def test_keyboard_hook_worker_records_error_when_installation_fails(monkeypatch):
+    user32 = SimpleNamespace(SetWindowsHookExW = lambda *args: 0)
+    fake_event = SimpleNamespace(set = lambda: None)
+    monkeypatch.setattr(keyboard_backend, "_user32", user32)
+    monkeypatch.setattr(keyboard_backend, "_HookProcedure", lambda function: function)
+    monkeypatch.setattr(keyboard_backend, "_hook_ready_event", fake_event)
+    monkeypatch.setattr(keyboard_backend.ctypes, "get_last_error", lambda: 1234)
+    keyboard_backend._hook_error = 0
+    keyboard_backend._hook_id = None
+    keyboard_backend._hook_worker()
+    assert keyboard_backend._hook_id == 0
+    assert keyboard_backend._hook_error == 1234
 
 def test_keyboard_hook_worker_handles_down_up_blocked_and_kill_switch_events(monkeypatch):
     user32 = _KeyboardUser32()
@@ -327,12 +389,14 @@ def test_uninstalling_idle_keyboard_hook_joins_its_worker_thread(monkeypatch):
     monkeypatch.setattr(keyboard_backend, "_hook_function", "func")
     monkeypatch.setattr(keyboard_backend, "_blocked_keys", set())
     monkeypatch.setattr(keyboard_backend, "_kill_switch_enabled", False)
+    monkeypatch.setattr(keyboard_backend, "_key_states", {65: True})
     keyboard_backend._unhook_if_idle()
     assert unhook_calls == [("unhook", 42), ("post", 1234, 0x0012)]
     assert fake_thread.joined is True
     assert keyboard_backend._hook_id is None
     assert keyboard_backend._hook_thread is None
     assert keyboard_backend._hook_function is None
+    assert keyboard_backend._key_states == {}
 
 def test_uninstalling_idle_keyboard_hook_without_a_worker_thread(monkeypatch):
     unhook_calls = []
@@ -747,6 +811,15 @@ def test_system_backend_clipboard_write_errors_release_owned_resources(monkeypat
         0 if failure == "create_window" else 1
     )
     if failure in {"lock", "set_data"}: assert len(kernel32.freed_handles) == 1
+
+def test_system_window_operations_call_ensure_dpi_aware(monkeypatch):
+    dpi_calls = []
+    monkeypatch.setattr(system_backend, "_ensure_dpi_aware", lambda: dpi_calls.append("dpi"))
+    monkeypatch.setattr(system_backend, "_find_window", lambda title: 1234)
+    monkeypatch.setattr(system_backend._user32, "SetWindowPos", lambda *args: 1)
+    system_backend._resize_window("title", 800, 600)
+    system_backend._move_window("title", 100, 200)
+    assert dpi_calls == ["dpi", "dpi"]
 
 def test_system_backend_finds_and_operates_on_exact_visible_window_titles(monkeypatch):
     user32, _ = _install_fake_system_apis(monkeypatch)
