@@ -4,11 +4,10 @@ on:
   push:
     paths:
       - "advanced_automation_utilities/**"
-      - "tests/**"
-      - "scripts/**"
       - "pyproject.toml"
-      - ".pre-commit-config.yaml"
       - "README.md"
+      - "tests/**"
+      - "scripts/run_tests.py"
       - ".github/workflows/unit_tests.yml"
   workflow_dispatch:
 

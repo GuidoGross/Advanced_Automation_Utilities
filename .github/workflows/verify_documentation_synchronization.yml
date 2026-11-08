@@ -4,10 +4,10 @@ on:
   push:
     paths:
       - "advanced_automation_utilities/**"
-      - "wiki/**"
-      - "scripts/synchronize_documentation.py"
       - "pyproject.toml"
       - "README.md"
+      - "wiki/**"
+      - "scripts/synchronize_documentation.py"
       - ".github/workflows/verify_documentation_synchronization.yml"
   workflow_dispatch:
 
