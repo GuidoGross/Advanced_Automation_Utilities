@@ -17,58 +17,39 @@ jobs:
     outputs:
       passed: ${{steps.checks.outputs.passed}}
       version: ${{steps.version.outputs.version}}
+      should_publish: ${{steps.version.outputs.should_publish}}
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
         with:
           ref: ${{github.event.workflow_run.head_sha || github.sha}}
           fetch-depth: 0
-      - name: Download change context
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@v8
-        with:
-          name: release-check-context
-          run-id: ${{github.event.workflow_run.id}}
-          github-token: ${{github.token}}
-          path: ${{runner.temp}}/release-check-context
-      - name: Check whether the package version changed
+      - name: Check whether the package version needs publishing
         id: version
-        env:
-          BASE_SHA_FILE: ${{runner.temp}}/release-check-context/base-sha.txt
         run: |
           python - <<'PY'
-          from pathlib import Path
-          import os
-          import re
+          from urllib.request import urlopen
+          from urllib.error import HTTPError
           import tomllib
-          import subprocess
+          import os
 
-          base_sha = Path(os.environ["BASE_SHA_FILE"]).read_text(encoding = "utf-8").strip()
-          if not re.fullmatch(r"[0-9a-f]{40,64}", base_sha):
-              print("The triggering workflow was not started by a push with a base commit.")
-              changed = False
-              version = ""
-          else:
-              with open("pyproject.toml", "rb") as file:
-                  current_version = tomllib.load(file)["project"]["version"]
-              previous_project = subprocess.run(
-                  ["git", "show", f"{base_sha}:pyproject.toml"],
-                  capture_output = True,
-                  check = True
-              )
-              previous_version = tomllib.loads(
-                  previous_project.stdout.decode("utf-8")
-              )["project"]["version"]
-              changed = current_version != previous_version
-              version = current_version if changed else ""
-              print(f"Package version changed: {changed}")
+          with open("pyproject.toml", "rb") as file: project = tomllib.load(file)["project"]
+          package_name = project["name"].replace("-", "_")
+          version = project["version"]
+          url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+          try:
+              with urlopen(url, timeout = 15): should_publish = False
+          except HTTPError as error:
+              if error.code != 404: raise
+              should_publish = True
+          print(f"Package version {version} needs publishing: {should_publish}")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding = "utf-8") as output:
-              output.write(f"changed={str(changed).lower()}\n")
+              output.write(f"should_publish={str(should_publish).lower()}\n")
               output.write(f"version={version}\n")
           PY
       - name: Verify all required checks
         id: checks
-        if: steps.version.outputs.changed == 'true'
+        if: steps.version.outputs.should_publish == 'true'
         uses: actions/github-script@v8
         with:
           script: |
@@ -87,13 +68,13 @@ jobs:
               });
               const matchingRuns = data.workflow_runs.filter(run => run.head_sha === targetSha && run.event === "push").sort((left, right) => right.run_number - left.run_number);
               if (matchingRuns.length === 0 || matchingRuns[0].status !== "completed") {
-                core.info(`${workflowId.id} has not completed for ${targetSha};
+                core.info(`${workflowId} has not completed for ${targetSha};
                 waiting for its completion event.`);
                 core.setOutput("passed", "false");
                 return;
               }
               if (matchingRuns[0].conclusion !== "success") {
-                core.info(`${workflowId.id} concluded with ${matchingRuns[0].conclusion}.`);
+                core.info(`${workflowId} concluded with ${matchingRuns[0].conclusion}.`);
                 core.setOutput("passed", "false");
                 return;
               }
@@ -102,7 +83,7 @@ jobs:
   publish:
     name: Publish to PyPI
     needs: verify
-    if: needs.verify.outputs.passed == 'true'
+    if: needs.verify.outputs.should_publish == 'true' && needs.verify.outputs.passed == 'true'
     runs-on: ubuntu-24.04
     environment:
       name: pypi

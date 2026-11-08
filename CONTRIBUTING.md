@@ -42,7 +42,7 @@ python -m pip install -e ".[dev]"
     ```
 
 > [!NOTE]
-> The test runner uses the `development` profile by default (25 examples). The pre-commit hook uses the `pre_commit` profile (250 examples). The GitHub Actions workflow uses the `post_commit` profile (1.000 examples).
+> The test runner uses the `development` profile by default (25 examples). The pre-commit hook uses the `pre_commit` profile (100 examples). The GitHub Actions workflow uses the `post_commit` profile (1.000 examples).
 
 **To run each profile locally:**
 

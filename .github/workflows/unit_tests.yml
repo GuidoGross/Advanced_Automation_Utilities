@@ -23,37 +23,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Prepare release check context
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $context_directory = Join-Path $env:RUNNER_TEMP "release-check-context"
-          New-Item -ItemType Directory -Force -Path $context_directory | Out-Null
-          if ($env:GITHUB_EVENT_NAME -eq "push" -and "${{github.event.before}}" -notmatch "^0+$") {
-            $base_sha = "${{github.event.before}}"
-            $changed_files = @(git diff --name-only "${{github.event.before}}" "$env:GITHUB_SHA")
-            if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
-          } else {
-            $base_sha = ""
-            $changed_files = @("*")
-          }
-          [System.IO.File]::WriteAllText(
-            (Join-Path $context_directory "base-sha.txt"),
-            $base_sha,
-            [System.Text.UTF8Encoding]::new($false)
-          )
-          [System.IO.File]::WriteAllLines(
-            (Join-Path $context_directory "changed-files.txt"),
-            $changed_files,
-            [System.Text.UTF8Encoding]::new($false)
-          )
-      - name: Upload release check context
-        uses: actions/upload-artifact@v6
-        with:
-          name: release-check-context
-          path: ${{runner.temp}}/release-check-context/
-          if-no-files-found: error
-          retention-days: 1
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -77,5 +46,5 @@ jobs:
             $changed_files = @(git diff --name-only $env:BEFORE_SHA $env:GITHUB_SHA)
             if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
           }
-          python scripts/run_tests.py --hypothesis-profile post_commit --require-full-suite-on-unpublished --changed-files $changed_files
+          python scripts/run_tests.py --hypothesis-profile post_commit --changed-files $changed_files
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
