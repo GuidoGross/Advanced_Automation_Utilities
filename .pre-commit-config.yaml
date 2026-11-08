@@ -25,7 +25,7 @@ repos:
         name: Synchronize documentation
         entry: python scripts/synchronize_documentation.py
         language: system
-        files: ^(advanced_automation_utilities/|README\.md$|wiki/|pyproject\.toml$)
+        files: ^(advanced_automation_utilities/|README\.md$|wiki/|pyproject\.toml$|tests/conftest\.py$)
         pass_filenames: false
         stages: [pre-commit]
       - id: run_unit_tests

@@ -72,13 +72,13 @@ python .\scripts\run_coverage_analysis.py
 > Both the pre-commit hook and the GitHub Actions workflow automatically select test files based on changed files: changes within a module run that module's tests; Windows backend changes also run `test_windows_backend.py`; shared infrastructure changes run tests for affected modules, and unrecognized or test-configuration changes run the full suite.
 
 > [!NOTE]
-> GitHub Actions also builds the package, installs it on a fresh Windows runner, and verifies that it imports on pushes that modify the package, project metadata, README, or smoke-test workflow.
+> GitHub Actions also builds the package, installs it on a fresh Windows runner, and verifies that it imports on pushes that modify the package, project metadata, README, or smoke test workflow.
 
 ## **Changes and pull requests**
 
 - Keep each change focused and consistent with the existing code and documentation style.
 - Use English for code, identifiers, and technical documentation, consistent with the project.
-- Update the README.md, wiki, or examples when a change affects documented behavior or public APIs.
+- Update the README, wiki, or examples when a change affects documented behavior or public APIs.
 - Explain the reason for new dependencies and keep compatibility with the supported Windows and Python versions in mind.
 - Describe the change, its motivation, and any compatibility impact in the pull request.
 - Test the affected behavior on Windows when possible, and state which checks or manual steps you performed and their results.
