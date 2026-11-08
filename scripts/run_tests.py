@@ -1,11 +1,14 @@
 from tui_utilities import decimal_format, header, print
 from pathlib import Path
+from urllib.request import urlopen
+from urllib.error import HTTPError
+import time
 import argparse
 import os
-import re
-import subprocess
 import sys
-import time
+import subprocess
+import re
+import tomllib
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 HYPOTHESIS_PROFILES = ("development", "pre_commit", "post_commit")
@@ -20,10 +23,18 @@ TEST_FILES_BY_MODULE = {
     "utilities": ("tests/test_utilities.py",),
     "windows_backend": ("tests/test_windows_backend.py",)
 }
-QUEUEABLE_TEST_MODULES = ("asynchrony", "keyboard", "mouse", "sound", "system")
 COMMON_MODULE_TEST_MODULES = (
-    "asynchrony", "keyboard", "mouse", "screen", "sound", "system", "timing", "utilities"
+    "asynchrony",
+    "keyboard",
+    "mouse",
+    "screen",
+    "sound",
+    "system",
+    "timing",
+    "utilities",
+    "windows_backend"
 )
+QUEUEABLE_TEST_MODULES = ("asynchrony", "keyboard", "mouse", "sound", "system")
 
 def main():
     start_time = time.perf_counter()
@@ -31,12 +42,19 @@ def main():
     parser = argparse.ArgumentParser(description = "Run unit tests affected by changed files.")
     parser.add_argument("--hypothesis-profile", choices = HYPOTHESIS_PROFILES, default = "development")
     parser.add_argument("--changed-files", nargs = "*", default = [])
+    parser.add_argument(
+        "--require-full-suite-on-unpublished",
+        action = "store_true",
+        help = "Run all tests if the version in pyproject.toml is not yet published on PyPI."
+    )
     arguments = parser.parse_args()
     all_test_files = sorted(
         str(test_file.relative_to(PROJECT_ROOT))
         for test_file in (PROJECT_ROOT / "tests").glob("test_*.py")
     )
     selected_tests, run_all_tests = _select_tests(arguments.changed_files)
+    if not run_all_tests and arguments.require_full_suite_on_unpublished and not _is_version_published():
+        run_all_tests = True
     if run_all_tests: selected_tests = set(all_test_files)
     ordered_test_files = sorted(selected_tests)
     if run_all_tests:
@@ -97,8 +115,7 @@ def _select_tests(changed_files):
         if module_match:
             module_name = module_match.group(1)
             _add_module_tests(selected_tests, (module_name,))
-            if module_name == "timing":
-                _add_module_tests(selected_tests, ("mouse", "keyboard", "asynchrony"))
+            if module_name == "timing": _add_module_tests(selected_tests, QUEUEABLE_TEST_MODULES)
             elif module_name == "screen": _add_module_tests(selected_tests, ("mouse",))
             continue
         backend_match = re.fullmatch(
@@ -130,5 +147,18 @@ def _select_tests(changed_files):
 
 def _add_module_tests(selected_tests, module_names):
     for module_name in module_names: selected_tests.update(TEST_FILES_BY_MODULE[module_name])
+
+def _is_version_published():
+    try:
+        with open(PROJECT_ROOT / "pyproject.toml", "rb") as file:
+            project = tomllib.load(file)["project"]
+        package_name = project["name"].replace("-", "_")
+        version = project["version"]
+        url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+        with urlopen(url, timeout = 10): return True
+    except HTTPError as error:
+        if error.code == 404: return False
+        return True
+    except Exception: return True
 
 if __name__ == "__main__": raise SystemExit(main())

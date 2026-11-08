@@ -2,7 +2,7 @@ name: Publish
 
 on:
   workflow_run:
-    workflows: ["Unit tests", "Smoke test"]
+    workflows: ["Unit tests", "Smoke test", "Verify documentation synchronization"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -65,10 +65,21 @@ jobs:
                     "pyproject.toml", ".pre-commit-config.yaml", "README.md",
                     ".github/workflows/unit_tests.yml"
                   ].includes(file)
+              },
+              {
+                id: "verify_documentation_synchronization.yml",
+                matches: file => file === "*" || file.startsWith("advanced_automation_utilities/")
+                  || file.startsWith("wiki/")
+                  || [
+                    "pyproject.toml", "README.md", "scripts/synchronize_documentation.py",
+                    ".github/workflows/verify_documentation_synchronization.yml"
+                  ].includes(file)
               }
             ].filter(workflow => changedFiles.some(workflow.matches));
             if (workflows.length === 0) {
-              core.info("Neither smoke test nor unit tests applies to these changes.");
+              core.info(
+                "Neither smoke test, unit tests, nor documentation synchronization applies to these changes."
+              );
               core.setOutput("passed", "true");
               return;
             }
