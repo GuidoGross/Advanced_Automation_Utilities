@@ -46,5 +46,5 @@ jobs:
             $changed_files = @(git diff --name-only $env:BEFORE_SHA $env:GITHUB_SHA)
             if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
           }
-          python scripts/run_tests.py --hypothesis-profile post_commit --changed-files $changed_files
+          python scripts/run_tests.py --hypothesis-profile post_commit --require-full-suite-on-unpublished --changed-files $changed_files
           if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}

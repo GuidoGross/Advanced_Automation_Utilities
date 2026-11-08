@@ -67,9 +67,15 @@ jobs:
                 per_page: 100
               });
               const matchingRuns = data.workflow_runs.filter(run => run.head_sha === targetSha && run.event === "push").sort((left, right) => right.run_number - left.run_number);
-              if (matchingRuns.length === 0 || matchingRuns[0].status !== "completed") {
-                core.info(`${workflowId} has not completed for ${targetSha};
-                waiting for its completion event.`);
+              if (matchingRuns.length === 0) {
+                core.info(
+                  `No ${workflowId} run was found for ${targetSha}; the commit may not match its path filters.`
+                );
+                core.setOutput("passed", "false");
+                return;
+              }
+              if (matchingRuns[0].status !== "completed") {
+                core.info(`${workflowId} has not completed for ${targetSha} it is still in progress.`);
                 core.setOutput("passed", "false");
                 return;
               }

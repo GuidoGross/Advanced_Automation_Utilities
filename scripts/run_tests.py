@@ -1,11 +1,14 @@
 from tui_utilities import decimal_format, header, print
 from pathlib import Path
+from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
 import time
 import argparse
 import os
 import sys
 import subprocess
 import re
+import tomllib
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 HYPOTHESIS_PROFILES = ("development", "pre_commit", "post_commit")
@@ -39,12 +42,19 @@ def main():
     parser = argparse.ArgumentParser(description = "Run unit tests affected by changed files.")
     parser.add_argument("--hypothesis-profile", choices = HYPOTHESIS_PROFILES, default = "development")
     parser.add_argument("--changed-files", nargs = "*", default = [])
+    parser.add_argument(
+        "--require-full-suite-on-unpublished",
+        action = "store_true",
+        help = "Run all tests if the version in pyproject.toml is not yet published on PyPI."
+    )
     arguments = parser.parse_args()
     all_test_files = sorted(
         str(test_file.relative_to(PROJECT_ROOT))
         for test_file in (PROJECT_ROOT / "tests").glob("test_*.py")
     )
     selected_tests, run_all_tests = _select_tests(arguments.changed_files)
+    if not run_all_tests and arguments.require_full_suite_on_unpublished and not _is_version_published():
+        run_all_tests = True
     if run_all_tests: selected_tests = set(all_test_files)
     ordered_test_files = sorted(selected_tests)
     if run_all_tests:
@@ -146,5 +156,28 @@ def _select_tests(changed_files):
 
 def _add_module_tests(selected_tests, module_names):
     for module_name in module_names: selected_tests.update(TEST_FILES_BY_MODULE[module_name])
+
+def _is_version_published():
+    with open(PROJECT_ROOT / "pyproject.toml", "rb") as file: project = tomllib.load(file)["project"]
+    package_name = project["name"].replace("-", "_")
+    version = project["version"]
+    url = f"https://pypi.org/pypi/{package_name}/{version}/json"
+    try:
+        with urlopen(url, timeout = 10): return True
+    except HTTPError as error:
+        if error.code == 404: return False
+        print(
+            f"Unable to verify whether version {version} is on PyPI (HTTP {error.code}); running all unit tests.",
+            color = "#ff0000",
+            bold = True
+        )
+        return False
+    except (URLError, TimeoutError, OSError) as error:
+        print(
+            f"Unable to verify whether version {version} is on PyPI ({error}); running all unit tests.",
+            color = "#ff0000",
+            bold = True
+        )
+        return False
 
 if __name__ == "__main__": raise SystemExit(main())
