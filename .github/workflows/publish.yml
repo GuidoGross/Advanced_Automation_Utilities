@@ -5,7 +5,6 @@ on:
     workflows: ["Unit tests", "Smoke test", "Verify documentation synchronization"]
     types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   actions: read
@@ -13,7 +12,7 @@ permissions:
 
 jobs:
   verify:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    if: github.ref == 'refs/heads/main' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     outputs:
       passed: ${{steps.checks.outputs.passed}}
@@ -32,69 +31,61 @@ jobs:
           run-id: ${{github.event.workflow_run.id}}
           github-token: ${{github.token}}
           path: ${{runner.temp}}/release-check-context
-      - name: Prepare manual check context
-        if: github.event_name == 'workflow_dispatch'
+      - name: Check whether the package version changed
+        id: version
+        env:
+          BASE_SHA_FILE: ${{runner.temp}}/release-check-context/base-sha.txt
         run: |
-          mkdir -p "$RUNNER_TEMP/release-check-context"
-          printf '*\n' > "$RUNNER_TEMP/release-check-context/changed-files.txt"
-      - name: Verify smoke test and unit tests
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+          import tomllib
+          import subprocess
+
+          base_sha = Path(os.environ["BASE_SHA_FILE"]).read_text(encoding = "utf-8").strip()
+          if not re.fullmatch(r"[0-9a-f]{40,64}", base_sha):
+              print("The triggering workflow was not started by a push with a base commit.")
+              changed = False
+              version = ""
+          else:
+              with open("pyproject.toml", "rb") as file:
+                  current_version = tomllib.load(file)["project"]["version"]
+              previous_project = subprocess.run(
+                  ["git", "show", f"{base_sha}:pyproject.toml"],
+                  capture_output = True,
+                  check = True
+              )
+              previous_version = tomllib.loads(
+                  previous_project.stdout.decode("utf-8")
+              )["project"]["version"]
+              changed = current_version != previous_version
+              version = current_version if changed else ""
+              print(f"Package version changed: {changed}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding = "utf-8") as output:
+              output.write(f"changed={str(changed).lower()}\n")
+              output.write(f"version={version}\n")
+          PY
+      - name: Verify all required checks
         id: checks
+        if: steps.version.outputs.changed == 'true'
         uses: actions/github-script@v8
         with:
           script: |
-            const fs = require("fs");
-            const path = require("path");
-            const targetSha = context.eventName === "workflow_run"
-              ? context.payload.workflow_run.head_sha
-              : context.sha;
-            const changedFiles = fs.readFileSync(
-              path.join(process.env.RUNNER_TEMP, "release-check-context", "changed-files.txt"),
-              "utf8"
-            ).replace(/^\uFEFF/, "").split(/\r?\n/).filter(Boolean);
+            const targetSha = context.payload.workflow_run.head_sha;
             const workflows = [
-              {
-                id: "smoke_test.yml",
-                matches: file => file === "*" || file.startsWith("advanced_automation_utilities/")
-                  || ["pyproject.toml", "README.md", ".github/workflows/smoke_test.yml"].includes(file)
-              },
-              {
-                id: "unit_tests.yml",
-                matches: file => file === "*" || file.startsWith("advanced_automation_utilities/")
-                  || file.startsWith("tests/") || file.startsWith("scripts/")
-                  || [
-                    "pyproject.toml", ".pre-commit-config.yaml", "README.md",
-                    ".github/workflows/unit_tests.yml"
-                  ].includes(file)
-              },
-              {
-                id: "verify_documentation_synchronization.yml",
-                matches: file => file === "*" || file.startsWith("advanced_automation_utilities/")
-                  || file.startsWith("wiki/")
-                  || [
-                    "pyproject.toml", "README.md", "scripts/synchronize_documentation.py",
-                    ".github/workflows/verify_documentation_synchronization.yml"
-                  ].includes(file)
-              }
-            ].filter(workflow => changedFiles.some(workflow.matches));
-            if (workflows.length === 0) {
-              core.info(
-                "Neither smoke test, unit tests, nor documentation synchronization applies to these changes."
-              );
-              core.setOutput("passed", "true");
-              return;
-            }
+              "smoke_test.yml", "unit_tests.yml", "verify_documentation_synchronization.yml"
+            ];
             for (const workflowId of workflows) {
               const {data} = await github.rest.actions.listWorkflowRuns({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                workflow_id: workflowId.id,
+                workflow_id: workflowId,
                 head_sha: targetSha,
                 branch: "main",
                 per_page: 100
               });
-              const matchingRuns = data.workflow_runs
-                .filter(run => run.head_sha === targetSha && ["push", "workflow_dispatch"].includes(run.event))
-                .sort((left, right) => right.run_number - left.run_number);
+              const matchingRuns = data.workflow_runs.filter(run => run.head_sha === targetSha && run.event === "push").sort((left, right) => right.run_number - left.run_number);
               if (matchingRuns.length === 0 || matchingRuns[0].status !== "completed") {
                 core.info(`${workflowId.id} has not completed for ${targetSha};
                 waiting for its completion event.`);
@@ -108,22 +99,6 @@ jobs:
               }
             }
             core.setOutput("passed", "true");
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.15"
-      - name: Read package version
-        id: version
-        if: steps.checks.outputs.passed == 'true'
-        run: |
-          python - <<'PY'
-          import tomllib
-          import os
-
-          with open("pyproject.toml", "rb") as file: version = tomllib.load(file)["project"]["version"]
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding = "utf-8") as output:
-              output.write(f"version={version}\n")
-          PY
   publish:
     name: Publish to PyPI
     needs: verify

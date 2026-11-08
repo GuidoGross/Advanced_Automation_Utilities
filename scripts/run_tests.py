@@ -1,7 +1,7 @@
 from tui_utilities import decimal_format, header, print
 from pathlib import Path
 from urllib.request import urlopen
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 import time
 import argparse
 import os
@@ -98,8 +98,10 @@ def _select_tests(changed_files):
         for test_file in (PROJECT_ROOT / "tests").glob("test_*.py")
     }
     selected_tests = set()
+    has_non_test_changes = False
     for changed_file in changed_files:
-        normalized_path = changed_file.replace("\\", "/").lstrip("./")
+        normalized_path = changed_file.replace("\\", "/")
+        while normalized_path.startswith("./"): normalized_path = normalized_path[2:]
         test_match = re.fullmatch(r"tests/(test_[^/]+\.py)", normalized_path)
         if test_match:
             test_path = f"tests/{test_match.group(1)}"
@@ -107,7 +109,11 @@ def _select_tests(changed_files):
                 selected_tests.add(test_path)
                 continue
             return all_test_files, True
-        if normalized_path in {"tests/conftest.py", "scripts/run_tests.py"}: return all_test_files, True
+        if normalized_path in {"tests/conftest.py", "scripts/run_tests.py", "pyproject.toml", ".github/workflows/unit_tests.yml"}:
+            return all_test_files, True
+        if not normalized_path.startswith("advanced_automation_utilities/"):
+            has_non_test_changes = True
+            continue
         module_match = re.match(
             r"advanced_automation_utilities/(keyboard|mouse|screen|sound|system|timing)/",
             normalized_path
@@ -143,22 +149,33 @@ def _select_tests(changed_files):
             _add_module_tests(selected_tests, COMMON_MODULE_TEST_MODULES)
             continue
         return all_test_files, True
-    return selected_tests or all_test_files, not selected_tests
+    if selected_tests or has_non_test_changes: return selected_tests, False
+    return all_test_files, True
 
 def _add_module_tests(selected_tests, module_names):
     for module_name in module_names: selected_tests.update(TEST_FILES_BY_MODULE[module_name])
 
 def _is_version_published():
+    with open(PROJECT_ROOT / "pyproject.toml", "rb") as file: project = tomllib.load(file)["project"]
+    package_name = project["name"].replace("-", "_")
+    version = project["version"]
+    url = f"https://pypi.org/pypi/{package_name}/{version}/json"
     try:
-        with open(PROJECT_ROOT / "pyproject.toml", "rb") as file:
-            project = tomllib.load(file)["project"]
-        package_name = project["name"].replace("-", "_")
-        version = project["version"]
-        url = f"https://pypi.org/pypi/{package_name}/{version}/json"
         with urlopen(url, timeout = 10): return True
     except HTTPError as error:
         if error.code == 404: return False
-        return True
-    except Exception: return True
+        print(
+            f"Unable to verify whether version {version} is on PyPI (HTTP {error.code}); running all unit tests.",
+            color = "#ff0000",
+            bold = True
+        )
+        return False
+    except (URLError, TimeoutError, OSError) as error:
+        print(
+            f"Unable to verify whether version {version} is on PyPI ({error}); running all unit tests.",
+            color = "#ff0000",
+            bold = True
+        )
+        return False
 
 if __name__ == "__main__": raise SystemExit(main())
